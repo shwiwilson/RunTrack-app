@@ -1,0 +1,2874 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: lib/**
+- Files matching these patterns are excluded: **/build/**, **/.dart_tool/**, **/.pub-cache/**
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+lib/
+  features/
+    achievements/
+      presentation/
+        view_models/
+          achievements_view_model.dart
+        views/
+          achievements_view.dart
+    activity/
+      presentation/
+        view_models/
+          run_track_view_model.dart
+        views/
+          run_track_view.dart
+    club_hub/
+      presentation/
+        view_models/
+          club_hub_view_model.dart
+        views/
+          club_hub_view.dart
+    profile/
+      presentation/
+        view_models/
+          you_view_model.dart
+        views/
+          you_tab.dart
+  src/
+    core/
+      common_widgets/
+        layout_gaps.dart
+        premium_card.dart
+      data/
+        mock_run_track_repository.dart
+      mock_data/
+        mock_activity_service.dart
+        mock_supabase_db.dart
+      theme/
+        club_theme_config.dart
+        mock_themes.dart
+  main.dart
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="lib/features/achievements/presentation/view_models/achievements_view_model.dart">
+import 'package:flutter/foundation.dart';
+import 'package:run_track_app/src/core/data/mock_run_track_repository.dart';
+
+class AchievementsViewModel extends ChangeNotifier {
+  factory AchievementsViewModel({
+    required MockRunTrackRepository repository,
+    required String clubId,
+  }) {
+    return AchievementsViewModel._(repository, clubId);
+  }
+
+  AchievementsViewModel._(this._repository, this._clubId);
+
+  final MockRunTrackRepository _repository;
+  final String _clubId;
+
+  AchievementsState get state {
+    final row = _repository.fetchAchievements(_clubId);
+    final efficiency = row['efficiency_factor'] as Map<String, dynamic>;
+
+    return AchievementsState(
+      efficiencyLabel: efficiency['label'] as String,
+      efficiencyValue: efficiency['value'] as String,
+      efficiencyTrend: efficiency['trend'] as String,
+      raceResults: [
+        for (final result in row['race_results'] as List<dynamic>)
+          RaceResultItem.fromJson(result as Map<String, dynamic>),
+      ],
+      challengeFlags: [
+        for (final flag in row['challenge_flags'] as List<dynamic>)
+          ChallengeFlag.fromJson(flag as Map<String, dynamic>),
+      ],
+      mapTiles: [
+        for (final tile in row['map_bingo_tiles'] as List<dynamic>)
+          MapBingoTileState.fromJson(tile as Map<String, dynamic>),
+      ],
+    );
+  }
+}
+
+@immutable
+class AchievementsState {
+  const AchievementsState({
+    required this.efficiencyLabel,
+    required this.efficiencyValue,
+    required this.efficiencyTrend,
+    required this.raceResults,
+    required this.challengeFlags,
+    required this.mapTiles,
+  });
+
+  final String efficiencyLabel;
+  final String efficiencyValue;
+  final String efficiencyTrend;
+  final List<RaceResultItem> raceResults;
+  final List<ChallengeFlag> challengeFlags;
+  final List<MapBingoTileState> mapTiles;
+}
+
+@immutable
+class RaceResultItem {
+  const RaceResultItem({
+    required this.event,
+    required this.time,
+    required this.result,
+  });
+
+  final String event;
+  final String time;
+  final String result;
+
+  factory RaceResultItem.fromJson(Map<String, dynamic> json) {
+    return RaceResultItem(
+      event: json['event'] as String,
+      time: json['time'] as String,
+      result: json['result'] as String,
+    );
+  }
+}
+
+@immutable
+class ChallengeFlag {
+  const ChallengeFlag({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  factory ChallengeFlag.fromJson(Map<String, dynamic> json) {
+    return ChallengeFlag(
+      label: json['label'] as String,
+      value: json['value'] as String,
+    );
+  }
+}
+
+@immutable
+class MapBingoTileState {
+  const MapBingoTileState({required this.label, required this.visited});
+
+  final String label;
+  final bool visited;
+
+  factory MapBingoTileState.fromJson(Map<String, dynamic> json) {
+    return MapBingoTileState(
+      label: json['label'] as String,
+      visited: json['visited'] as bool,
+    );
+  }
+}
+</file>
+
+<file path="lib/features/achievements/presentation/views/achievements_view.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/features/achievements/presentation/view_models/achievements_view_model.dart';
+import 'package:run_track_app/src/core/common_widgets/layout_gaps.dart';
+import 'package:run_track_app/src/core/common_widgets/premium_card.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+class AchievementsView extends StatelessWidget {
+  const AchievementsView({required this.viewModel, super.key});
+
+  final AchievementsViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) => _AchievementsLayout(state: viewModel.state),
+    );
+  }
+}
+
+class _AchievementsLayout extends StatelessWidget {
+  const _AchievementsLayout({required this.state});
+
+  final AchievementsState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(tokens.edgePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _EfficiencyCard(state: state),
+              const VerticalGap(),
+              _RaceResultsCard(results: state.raceResults),
+              const VerticalGap(),
+              _ChallengeFlagsCard(flags: state.challengeFlags),
+              const VerticalGap(),
+              _MapBingoCard(tiles: state.mapTiles),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EfficiencyCard extends StatelessWidget {
+  const _EfficiencyCard({required this.state});
+
+  final AchievementsState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  state.efficiencyLabel,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const VerticalGap(),
+                Text(state.efficiencyTrend),
+              ],
+            ),
+          ),
+          const HorizontalGap(),
+          Flexible(
+            child: Text(
+              state.efficiencyValue,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RaceResultsCard extends StatelessWidget {
+  const _RaceResultsCard({required this.results});
+
+  final List<RaceResultItem> results;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Verified race results',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const VerticalGap(),
+          for (final result in results) ...[
+            _RaceResultRow(result: result),
+            if (result != results.last) const _SoftDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RaceResultRow extends StatelessWidget {
+  const _RaceResultRow({required this.result});
+
+  final RaceResultItem result;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(result.event),
+              Text(
+                result.result,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const HorizontalGap(),
+        Flexible(
+          child: Text(
+            result.time,
+            textAlign: TextAlign.right,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChallengeFlagsCard extends StatelessWidget {
+  const _ChallengeFlagsCard({required this.flags});
+
+  final List<ChallengeFlag> flags;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Fair-play engine',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const VerticalGap(),
+          for (final flag in flags) ...[
+            _FlagRow(flag: flag),
+            if (flag != flags.last) const _SoftDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FlagRow extends StatelessWidget {
+  const _FlagRow({required this.flag});
+
+  final ChallengeFlag flag;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(child: Text(flag.label)),
+        const HorizontalGap(),
+        Flexible(
+          child: Text(
+            flag.value,
+            textAlign: TextAlign.right,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MapBingoCard extends StatelessWidget {
+  const _MapBingoCard({required this.tiles});
+
+  final List<MapBingoTileState> tiles;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Map bingo', style: Theme.of(context).textTheme.titleMedium),
+          const VerticalGap(),
+          GridView.count(
+            crossAxisCount: 4,
+            crossAxisSpacing: tokens.edgePadding / 2,
+            mainAxisSpacing: tokens.edgePadding / 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [for (final tile in tiles) _MapTile(tile: tile)],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapTile extends StatelessWidget {
+  const _MapTile({required this.tile});
+
+  final MapBingoTileState tile;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tile.visited ? colorScheme.primary : colorScheme.surface,
+        border: Border.all(color: tokens.strokeColor),
+        borderRadius: BorderRadius.circular(tokens.borderRadius),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    tile.label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: tile.visited
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (tile.visited)
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [Icon(Icons.check, color: colorScheme.onPrimary)],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftDivider extends StatelessWidget {
+  const _SoftDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: ClubThemeTokens.of(context).edgePadding / 2,
+      ),
+      child: Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
+    );
+  }
+}
+</file>
+
+<file path="lib/features/activity/presentation/view_models/run_track_view_model.dart">
+import 'package:flutter/foundation.dart';
+import 'package:run_track_app/src/core/data/mock_run_track_repository.dart';
+
+class RunTrackViewModel extends ChangeNotifier {
+  factory RunTrackViewModel({
+    required MockRunTrackRepository repository,
+    required String clubId,
+  }) {
+    return RunTrackViewModel._(repository, clubId);
+  }
+
+  RunTrackViewModel._(this._repository, this._clubId);
+
+  final MockRunTrackRepository _repository;
+  final String _clubId;
+
+  RunTrackFeedState get state {
+    final activities = _repository.fetchActivities(_clubId);
+
+    return RunTrackFeedState(
+      syncSummary: 'Synced Strava, Garmin and COROS mock webhooks on open',
+      activities: [
+        for (final activity in activities) ActivityFeedItem.fromJson(activity),
+      ],
+    );
+  }
+}
+
+@immutable
+class RunTrackFeedState {
+  const RunTrackFeedState({
+    required this.syncSummary,
+    required this.activities,
+  });
+
+  final String syncSummary;
+  final List<ActivityFeedItem> activities;
+}
+
+@immutable
+class ActivityFeedItem {
+  const ActivityFeedItem({
+    required this.source,
+    required this.athleteInitials,
+    required this.athleteName,
+    required this.title,
+    required this.subtitle,
+    required this.distance,
+    required this.pace,
+    required this.heartRate,
+    required this.efficiencyFactor,
+    required this.verifiedClubRun,
+    required this.clusterLabel,
+  });
+
+  final String source;
+  final String athleteInitials;
+  final String athleteName;
+  final String title;
+  final String subtitle;
+  final String distance;
+  final String pace;
+  final String heartRate;
+  final String efficiencyFactor;
+  final bool verifiedClubRun;
+  final String clusterLabel;
+
+  factory ActivityFeedItem.fromJson(Map<String, dynamic> json) {
+    return ActivityFeedItem(
+      source: json['source'] as String,
+      athleteInitials: json['athlete_initials'] as String,
+      athleteName: json['athlete_name'] as String,
+      title: json['title'] as String,
+      subtitle: json['subtitle'] as String,
+      distance: json['distance'] as String,
+      pace: json['pace'] as String,
+      heartRate: json['heart_rate'] as String,
+      efficiencyFactor: json['efficiency_factor'] as String,
+      verifiedClubRun: json['verified_club_run'] as bool,
+      clusterLabel: json['cluster_label'] as String,
+    );
+  }
+}
+</file>
+
+<file path="lib/features/activity/presentation/views/run_track_view.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/features/activity/presentation/view_models/run_track_view_model.dart';
+import 'package:run_track_app/src/core/common_widgets/layout_gaps.dart';
+import 'package:run_track_app/src/core/common_widgets/premium_card.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+class RunTrackView extends StatelessWidget {
+  const RunTrackView({required this.viewModel, super.key});
+
+  final RunTrackViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) => _RunTrackLayout(state: viewModel.state),
+    );
+  }
+}
+
+class _RunTrackLayout extends StatelessWidget {
+  const _RunTrackLayout({required this.state});
+
+  final RunTrackFeedState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(tokens.edgePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SyncPanel(summary: state.syncSummary),
+              const VerticalGap(),
+              for (final activity in state.activities) ...[
+                _ActivityCard(activity: activity),
+                if (activity != state.activities.last) const VerticalGap(),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SyncPanel extends StatelessWidget {
+  const _SyncPanel({required this.summary});
+
+  final String summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Row(
+        children: [
+          Icon(Icons.sync, color: Theme.of(context).colorScheme.primary),
+          const HorizontalGap(),
+          Expanded(
+            child: Text(summary, style: Theme.of(context).textTheme.bodyLarge),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({required this.activity});
+
+  final ActivityFeedItem activity;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InitialsMark(label: activity.athleteInitials),
+          const HorizontalGap(),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        activity.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const HorizontalGap(),
+                    _SourcePill(label: activity.source),
+                  ],
+                ),
+                const VerticalGap(),
+                Text(activity.athleteName),
+                Text(
+                  activity.subtitle,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const VerticalGap(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatBlock(
+                        label: 'Distance',
+                        value: activity.distance,
+                      ),
+                    ),
+                    const HorizontalGap(),
+                    Expanded(
+                      child: _StatBlock(label: 'HR', value: activity.heartRate),
+                    ),
+                  ],
+                ),
+                const VerticalGap(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatBlock(
+                        label: 'EF',
+                        value: activity.efficiencyFactor,
+                      ),
+                    ),
+                    const HorizontalGap(),
+                    Expanded(child: _ClusterLabel(activity: activity)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const HorizontalGap(),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  activity.pace,
+                  textAlign: TextAlign.right,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const VerticalGap(),
+                if (activity.verifiedClubRun) const _VerifiedBadge(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InitialsMark extends StatelessWidget {
+  const _InitialsMark({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        borderRadius: BorderRadius.circular(
+          ClubThemeTokens.of(context).borderRadius,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(ClubThemeTokens.of(context).edgePadding / 2),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SourcePill extends StatelessWidget {
+  const _SourcePill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: ClubThemeTokens.of(context).subtleFillColor,
+        border: Border.all(
+          color: ClubThemeTokens.of(context).subtleStrokeColor,
+        ),
+        borderRadius: BorderRadius.circular(
+          ClubThemeTokens.of(context).borderRadius,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(ClubThemeTokens.of(context).edgePadding / 3),
+        child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ),
+    );
+  }
+}
+
+class _StatBlock extends StatelessWidget {
+  const _StatBlock({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Text(value, style: Theme.of(context).textTheme.titleSmall),
+      ],
+    );
+  }
+}
+
+class _ClusterLabel extends StatelessWidget {
+  const _ClusterLabel({required this.activity});
+
+  final ActivityFeedItem activity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Cluster', style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          activity.clusterLabel,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+      ],
+    );
+  }
+}
+
+class _VerifiedBadge extends StatelessWidget {
+  const _VerifiedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: ClubThemeTokens.of(context).subtleFillColor,
+        border: Border.all(color: ClubThemeTokens.of(context).strokeColor),
+        borderRadius: BorderRadius.circular(
+          ClubThemeTokens.of(context).borderRadius,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(ClubThemeTokens.of(context).edgePadding / 3),
+        child: Text(
+          'Verified',
+          textAlign: TextAlign.right,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+</file>
+
+<file path="lib/features/club_hub/presentation/view_models/club_hub_view_model.dart">
+import 'package:flutter/foundation.dart';
+import 'package:run_track_app/src/core/data/mock_run_track_repository.dart';
+
+class ClubHubViewModel extends ChangeNotifier {
+  factory ClubHubViewModel({
+    required MockRunTrackRepository repository,
+    required String clubId,
+  }) {
+    return ClubHubViewModel._(repository, clubId);
+  }
+
+  ClubHubViewModel._(this._repository, this._clubId);
+
+  final MockRunTrackRepository _repository;
+  final String _clubId;
+
+  ClubHubState get state {
+    return ClubHubState(
+      sessions: [
+        for (final row in _repository.fetchClubSessions(_clubId))
+          ClubSessionItem.fromJson(row),
+      ],
+      stagedItems: [
+        for (final row in _repository.fetchNewsletterStaging(_clubId))
+          NewsletterStagingItem.fromJson(row),
+      ],
+    );
+  }
+}
+
+@immutable
+class ClubHubState {
+  const ClubHubState({required this.sessions, required this.stagedItems});
+
+  final List<ClubSessionItem> sessions;
+  final List<NewsletterStagingItem> stagedItems;
+}
+
+@immutable
+class ClubSessionItem {
+  const ClubSessionItem({
+    required this.title,
+    required this.description,
+    required this.date,
+    required this.time,
+    required this.location,
+    required this.spondUrl,
+    required this.rsvpInitials,
+  });
+
+  final String title;
+  final String description;
+  final String date;
+  final String time;
+  final String location;
+  final String spondUrl;
+  final List<String> rsvpInitials;
+
+  factory ClubSessionItem.fromJson(Map<String, dynamic> json) {
+    return ClubSessionItem(
+      title: json['title'] as String,
+      description: json['description'] as String,
+      date: json['date'] as String,
+      time: json['time'] as String,
+      location: json['location'] as String,
+      spondUrl: json['spond_url'] as String,
+      rsvpInitials: [
+        for (final initial in json['rsvp_initials'] as List<dynamic>)
+          initial as String,
+      ],
+    );
+  }
+}
+
+@immutable
+class NewsletterStagingItem {
+  const NewsletterStagingItem({
+    required this.source,
+    required this.status,
+    required this.date,
+    required this.time,
+    required this.location,
+    required this.description,
+  });
+
+  final String source;
+  final String status;
+  final String date;
+  final String time;
+  final String location;
+  final String description;
+
+  factory NewsletterStagingItem.fromJson(Map<String, dynamic> json) {
+    final extractedJson = json['extracted_json'] as Map<String, dynamic>;
+
+    return NewsletterStagingItem(
+      source: json['source'] as String,
+      status: json['status'] as String,
+      date: extractedJson['date'] as String,
+      time: extractedJson['time'] as String,
+      location: extractedJson['location'] as String,
+      description: extractedJson['description'] as String,
+    );
+  }
+}
+</file>
+
+<file path="lib/features/club_hub/presentation/views/club_hub_view.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/features/club_hub/presentation/view_models/club_hub_view_model.dart';
+import 'package:run_track_app/src/core/common_widgets/layout_gaps.dart';
+import 'package:run_track_app/src/core/common_widgets/premium_card.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+class ClubHubView extends StatelessWidget {
+  const ClubHubView({required this.viewModel, super.key});
+
+  final ClubHubViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) => _ClubHubLayout(state: viewModel.state),
+    );
+  }
+}
+
+class _ClubHubLayout extends StatelessWidget {
+  const _ClubHubLayout({required this.state});
+
+  final ClubHubState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(tokens.edgePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final session in state.sessions) ...[
+                _SessionCard(session: session),
+                const VerticalGap(),
+              ],
+              for (final stagedItem in state.stagedItems)
+                _NewsletterStagingCard(item: stagedItem),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionCard extends StatelessWidget {
+  const _SessionCard({required this.session});
+
+  final ClubSessionItem session;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const VerticalGap(),
+                    Text(session.description),
+                  ],
+                ),
+              ),
+              const HorizontalGap(),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      session.date,
+                      textAlign: TextAlign.right,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(session.time, textAlign: TextAlign.right),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const VerticalGap(),
+          Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
+          const VerticalGap(),
+          Row(
+            children: [
+              Icon(
+                Icons.place_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const HorizontalGap(),
+              Expanded(child: Text(session.location)),
+            ],
+          ),
+          const VerticalGap(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final initials in session.rsvpInitials) ...[
+                  _InitialsChip(initials: initials),
+                  const HorizontalGap(),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NewsletterStagingCard extends StatelessWidget {
+  const _NewsletterStagingCard({required this.item});
+
+  final NewsletterStagingItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Newsletter extraction',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              const HorizontalGap(),
+              _StatusPill(label: item.status),
+            ],
+          ),
+          const VerticalGap(),
+          Text(item.description),
+          const VerticalGap(),
+          _DetailRow(label: 'Date', value: item.date),
+          const _SoftDivider(),
+          _DetailRow(label: 'Time', value: item.time),
+          const _SoftDivider(),
+          _DetailRow(label: 'Location', value: item.location),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(child: Text(label)),
+        const HorizontalGap(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InitialsChip extends StatelessWidget {
+  const _InitialsChip({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        borderRadius: BorderRadius.circular(
+          ClubThemeTokens.of(context).borderRadius,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(ClubThemeTokens.of(context).edgePadding / 3),
+        child: Text(
+          initials,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: ClubThemeTokens.of(context).subtleFillColor,
+        border: Border.all(color: ClubThemeTokens.of(context).strokeColor),
+        borderRadius: BorderRadius.circular(
+          ClubThemeTokens.of(context).borderRadius,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(ClubThemeTokens.of(context).edgePadding / 3),
+        child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ),
+    );
+  }
+}
+
+class _SoftDivider extends StatelessWidget {
+  const _SoftDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: ClubThemeTokens.of(context).edgePadding / 2,
+      ),
+      child: Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
+    );
+  }
+}
+</file>
+
+<file path="lib/features/profile/presentation/view_models/you_view_model.dart">
+import 'package:flutter/foundation.dart';
+import 'package:run_track_app/src/core/data/mock_run_track_repository.dart';
+
+class YouViewModel extends ChangeNotifier {
+  factory YouViewModel({
+    required MockRunTrackRepository repository,
+    required String clubId,
+  }) {
+    return YouViewModel._(repository, clubId);
+  }
+
+  YouViewModel._(this._repository, this._clubId);
+
+  final MockRunTrackRepository _repository;
+  final String _clubId;
+
+  YouTabState get state {
+    final row = _repository.fetchReadiness(_clubId);
+
+    return YouTabState(
+      athleteName: row['athlete_name'] as String,
+      readinessScore: '${row['readiness_score']}',
+      readinessLabel: row['readiness_label'] as String,
+      coachInsight: row['coach_insight'] as String,
+      metrics: [
+        for (final metric in row['metrics'] as List<dynamic>)
+          BiometricMetric.fromJson(metric as Map<String, dynamic>),
+      ],
+      benchmarks: [
+        for (final benchmark in row['benchmarks'] as List<dynamic>)
+          BenchmarkMetric.fromJson(benchmark as Map<String, dynamic>),
+      ],
+    );
+  }
+}
+
+@immutable
+class YouTabState {
+  const YouTabState({
+    required this.athleteName,
+    required this.readinessScore,
+    required this.readinessLabel,
+    required this.coachInsight,
+    required this.metrics,
+    required this.benchmarks,
+  });
+
+  final String athleteName;
+  final String readinessScore;
+  final String readinessLabel;
+  final String coachInsight;
+  final List<BiometricMetric> metrics;
+  final List<BenchmarkMetric> benchmarks;
+}
+
+@immutable
+class BiometricMetric {
+  const BiometricMetric({
+    required this.label,
+    required this.value,
+    required this.trend,
+    required this.status,
+  });
+
+  final String label;
+  final String value;
+  final String trend;
+  final String status;
+
+  factory BiometricMetric.fromJson(Map<String, dynamic> json) {
+    return BiometricMetric(
+      label: json['label'] as String,
+      value: json['value'] as String,
+      trend: json['trend'] as String,
+      status: json['status'] as String,
+    );
+  }
+}
+
+@immutable
+class BenchmarkMetric {
+  const BenchmarkMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  factory BenchmarkMetric.fromJson(Map<String, dynamic> json) {
+    return BenchmarkMetric(
+      label: json['label'] as String,
+      value: json['value'] as String,
+    );
+  }
+}
+</file>
+
+<file path="lib/features/profile/presentation/views/you_tab.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/features/profile/presentation/view_models/you_view_model.dart';
+import 'package:run_track_app/src/core/common_widgets/layout_gaps.dart';
+import 'package:run_track_app/src/core/common_widgets/premium_card.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+class YouTabScreen extends StatelessWidget {
+  const YouTabScreen({required this.viewModel, super.key});
+
+  final YouViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) => _YouTabLayout(state: viewModel.state),
+    );
+  }
+}
+
+class _YouTabLayout extends StatelessWidget {
+  const _YouTabLayout({required this.state});
+
+  final YouTabState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(tokens.edgePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ReadinessHero(state: state),
+              const VerticalGap(),
+              _BiometricMatrix(metrics: state.metrics),
+              const VerticalGap(),
+              _BenchmarkPanel(benchmarks: state.benchmarks),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadinessHero extends StatelessWidget {
+  const _ReadinessHero({required this.state});
+
+  final YouTabState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Morning readiness',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const VerticalGap(),
+                    Text(
+                      state.readinessLabel,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ],
+                ),
+              ),
+              const HorizontalGap(),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      state.readinessScore,
+                      textAlign: TextAlign.right,
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                    Text(
+                      'readiness',
+                      textAlign: TextAlign.right,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const VerticalGap(),
+          Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
+          const VerticalGap(),
+          Text(
+            state.coachInsight,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BiometricMatrix extends StatelessWidget {
+  const _BiometricMatrix({required this.metrics});
+
+  final List<BiometricMetric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionHeader('Biometric matrix'),
+          const VerticalGap(),
+          for (final metric in metrics) ...[
+            _MetricRow(metric: metric),
+            if (metric != metrics.last) const _SoftDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricRow extends StatelessWidget {
+  const _MetricRow({required this.metric});
+
+  final BiometricMetric metric;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(metric.label),
+              Text(
+                metric.status,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const HorizontalGap(),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                metric.value,
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                metric.trend,
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BenchmarkPanel extends StatelessWidget {
+  const _BenchmarkPanel({required this.benchmarks});
+
+  final List<BenchmarkMetric> benchmarks;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _SectionHeader('90-day benchmark'),
+          const VerticalGap(),
+          for (final benchmark in benchmarks) ...[
+            _BenchmarkRow(benchmark: benchmark),
+            if (benchmark != benchmarks.last) const _SoftDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BenchmarkRow extends StatelessWidget {
+  const _BenchmarkRow({required this.benchmark});
+
+  final BenchmarkMetric benchmark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(child: Text(benchmark.label)),
+        const HorizontalGap(),
+        Flexible(
+          child: Text(
+            benchmark.value,
+            textAlign: TextAlign.right,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(label, style: Theme.of(context).textTheme.titleMedium);
+  }
+}
+
+class _SoftDivider extends StatelessWidget {
+  const _SoftDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: ClubThemeTokens.of(context).edgePadding / 2,
+      ),
+      child: Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
+    );
+  }
+}
+</file>
+
+<file path="lib/src/core/common_widgets/layout_gaps.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+class VerticalGap extends StatelessWidget {
+  const VerticalGap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+    return SizedBox(height: tokens.edgePadding / 2);
+  }
+}
+
+class HorizontalGap extends StatelessWidget {
+  const HorizontalGap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+    return SizedBox(width: tokens.edgePadding / 2);
+  }
+}
+</file>
+
+<file path="lib/src/core/common_widgets/premium_card.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+class PremiumCard extends StatelessWidget {
+  const PremiumCard({
+    super.key,
+    this.child,
+    this.children,
+    this.crossAxisAlignment = CrossAxisAlignment.stretch,
+    this.mainAxisSize = MainAxisSize.min,
+  }) : assert((child == null) != (children == null));
+
+  final Widget? child;
+  final List<Widget>? children;
+  final CrossAxisAlignment crossAxisAlignment;
+  final MainAxisSize mainAxisSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+
+    return Container(
+      padding: EdgeInsets.all(tokens.edgePadding),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: tokens.strokeColor),
+        borderRadius: BorderRadius.circular(tokens.borderRadius),
+      ),
+      child: Column(
+        mainAxisSize: mainAxisSize,
+        crossAxisAlignment: crossAxisAlignment,
+        children: child == null ? children! : [child!],
+      ),
+    );
+  }
+}
+</file>
+
+<file path="lib/src/core/data/mock_run_track_repository.dart">
+import 'package:run_track_app/src/core/mock_data/mock_supabase_db.dart';
+
+class MockRunTrackRepository {
+  const MockRunTrackRepository();
+
+  Map<String, dynamic> fetchDefaultClubProfile() {
+    return fetchClubProfile(defaultClubSlug);
+  }
+
+  Map<String, dynamic> fetchClubProfile(String clubSlug) {
+    final clubs = mockSupabaseDb['club_profiles'] as List<dynamic>;
+
+    return clubs.cast<Map<String, dynamic>>().firstWhere(
+      (club) => club['slug'] == clubSlug,
+    );
+  }
+
+  Map<String, dynamic> fetchReadiness(String clubId) {
+    final rows = mockSupabaseDb['athlete_readiness'] as List<dynamic>;
+
+    return rows.cast<Map<String, dynamic>>().firstWhere(
+      (row) => row['club_id'] == clubId,
+    );
+  }
+
+  List<Map<String, dynamic>> fetchActivities(String clubId) {
+    final rows = mockSupabaseDb['activity_feed'] as List<dynamic>;
+
+    return rows
+        .cast<Map<String, dynamic>>()
+        .where((row) => row['club_id'] == clubId)
+        .toList(growable: false);
+  }
+
+  List<Map<String, dynamic>> fetchClubSessions(String clubId) {
+    final rows = mockSupabaseDb['club_sessions'] as List<dynamic>;
+
+    return rows
+        .cast<Map<String, dynamic>>()
+        .where((row) => row['club_id'] == clubId)
+        .toList(growable: false);
+  }
+
+  List<Map<String, dynamic>> fetchNewsletterStaging(String clubId) {
+    final rows = mockSupabaseDb['newsletter_staging'] as List<dynamic>;
+
+    return rows
+        .cast<Map<String, dynamic>>()
+        .where((row) => row['club_id'] == clubId)
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> fetchAchievements(String clubId) {
+    final row = mockSupabaseDb['achievements'] as Map<String, dynamic>;
+
+    if (row['club_id'] != clubId) {
+      return const {};
+    }
+
+    return row;
+  }
+}
+</file>
+
+<file path="lib/src/core/mock_data/mock_activity_service.dart">
+class MockActivityFeedItem {
+  const MockActivityFeedItem({
+    required this.athleteInitial,
+    required this.athleteName,
+    required this.title,
+    required this.pace,
+    required this.milesString,
+    required this.isVerifiedClubRun,
+  });
+
+  final String athleteInitial;
+  final String athleteName;
+  final String title;
+  final String pace;
+  final String milesString;
+  final bool isVerifiedClubRun;
+}
+
+const mockFeedData = <MockActivityFeedItem>[
+  MockActivityFeedItem(
+    athleteInitial: 'S',
+    athleteName: 'Sarah M.',
+    title: 'Quayside tempo progression',
+    pace: '6:18/mi',
+    milesString: '7.4 mi',
+    isVerifiedClubRun: true,
+  ),
+  MockActivityFeedItem(
+    athleteInitial: 'J',
+    athleteName: 'Jon R.',
+    title: 'Easy loops before work',
+    pace: '7:42/mi',
+    milesString: '4.1 mi',
+    isVerifiedClubRun: false,
+  ),
+  MockActivityFeedItem(
+    athleteInitial: 'A',
+    athleteName: 'Amina K.',
+    title: 'Track reps with steady recoveries',
+    pace: '5:58/mi',
+    milesString: '5.6 mi',
+    isVerifiedClubRun: true,
+  ),
+];
+</file>
+
+<file path="lib/src/core/mock_data/mock_supabase_db.dart">
+import 'package:run_track_app/src/core/theme/mock_themes.dart';
+
+const defaultClubSlug = 'tyne_bridge_harriers';
+
+const mockSupabaseDb = <String, dynamic>{
+  'club_profiles': [
+    {
+      'id': 'club_tbh',
+      'slug': 'tyne_bridge_harriers',
+      'name': 'Tyne Bridge Harriers',
+      'shortName': 'TBH',
+      'theme_json': tyneBridgeHarriersTheme,
+    },
+    {
+      'id': 'club_heaton',
+      'slug': 'heaton_harriers',
+      'name': 'Heaton Harriers',
+      'shortName': 'HH',
+      'theme_json': heatonHarriersTheme,
+    },
+    {
+      'id': 'club_claremont',
+      'slug': 'claremont_road_runners',
+      'name': 'Claremont Road Runners',
+      'shortName': 'CRR',
+      'theme_json': claremontTheme,
+    },
+  ],
+  'athlete_readiness': [
+    {
+      'club_id': 'club_tbh',
+      'athlete_id': 'athlete_demo',
+      'athlete_name': 'Shane',
+      'readiness_score': 86,
+      'readiness_label': 'Ready for controlled quality',
+      'coach_insight':
+          'Your aerobic markers are stable; keep the first reps measured and only press if recovery HR stays calm.',
+      'coach_prompt_payload': {
+        'avg_pace': '6:31/mi',
+        'hr_zone': 3,
+        'consistency_score': 0.88,
+        'previous_90_day_avg': '6:44/mi',
+        'recovery_hr_baseline': 34,
+      },
+      'metrics': [
+        {'label': 'HRV', 'value': '62 ms', 'trend': '+8%', 'status': 'Up'},
+        {
+          'label': 'Sleep Window',
+          'value': '7h 42m',
+          'trend': '+31m',
+          'status': 'Solid',
+        },
+        {
+          'label': 'Training Load',
+          'value': '418',
+          'trend': '-4%',
+          'status': 'Balanced',
+        },
+        {
+          'label': 'Recovery HR',
+          'value': '34 bpm',
+          'trend': 'baseline',
+          'status': 'Prime',
+        },
+      ],
+      'benchmarks': [
+        {'label': '90-day pace delta', 'value': '13 sec/mi faster'},
+        {'label': 'Weekly volume', 'value': '42.6 mi'},
+        {'label': 'Easy-day discipline', 'value': '91%'},
+      ],
+    },
+  ],
+  'activity_feed': [
+    {
+      'club_id': 'club_tbh',
+      'source': 'Strava',
+      'athlete_initials': 'SM',
+      'athlete_name': 'Sarah M.',
+      'title': 'Quayside tempo progression',
+      'subtitle': 'Negative split from the Swing Bridge',
+      'distance': '7.4 mi',
+      'pace': '6:18/mi',
+      'heart_rate': '158 bpm',
+      'efficiency_factor': '0.040',
+      'verified_club_run': true,
+      'cluster_label': 'TBH threshold group',
+    },
+    {
+      'club_id': 'club_tbh',
+      'source': 'Garmin',
+      'athlete_initials': 'JR',
+      'athlete_name': 'Jon R.',
+      'title': 'Easy loops before work',
+      'subtitle': 'Kept it honest on the Town Moor',
+      'distance': '4.1 mi',
+      'pace': '7:42/mi',
+      'heart_rate': '132 bpm',
+      'efficiency_factor': '0.058',
+      'verified_club_run': false,
+      'cluster_label': 'Solo',
+    },
+    {
+      'club_id': 'club_tbh',
+      'source': 'COROS',
+      'athlete_initials': 'AK',
+      'athlete_name': 'Amina K.',
+      'title': 'Track reps with steady recoveries',
+      'subtitle': 'Smooth 800s, no late fade',
+      'distance': '5.6 mi',
+      'pace': '5:58/mi',
+      'heart_rate': '164 bpm',
+      'efficiency_factor': '0.036',
+      'verified_club_run': true,
+      'cluster_label': 'Tuesday track',
+    },
+  ],
+  'club_sessions': [
+    {
+      'club_id': 'club_tbh',
+      'title': 'Tuesday Intervals',
+      'description': '6 x 800m at controlled 10K effort with rolling recovery.',
+      'date': 'Tue',
+      'time': '18:30',
+      'location': 'Churchill Track',
+      'spond_url': 'https://spond.com/client/sessions/tbh-tuesday',
+      'rsvp_initials': ['AL', 'JM', 'KC', 'NO', 'RT', 'SM'],
+    },
+    {
+      'club_id': 'club_tbh',
+      'title': 'Sunday Long Run',
+      'description': 'Conversational miles, two distance groups, coffee after.',
+      'date': 'Sun',
+      'time': '09:00',
+      'location': 'Exhibition Park',
+      'spond_url': 'https://spond.com/client/sessions/tbh-sunday',
+      'rsvp_initials': ['PW', 'LS', 'ED', 'JR'],
+    },
+  ],
+  'newsletter_staging': [
+    {
+      'club_id': 'club_tbh',
+      'source': 'captains@tynebridgeharriers.com',
+      'status': 'staged',
+      'extracted_json': {
+        'date': 'Friday',
+        'time': '19:00',
+        'location': 'The Cycle Hub',
+        'description': 'Road relays briefing and vest collection.',
+      },
+    },
+  ],
+  'achievements': {
+    'club_id': 'club_tbh',
+    'efficiency_factor': {
+      'label': 'Efficiency Factor',
+      'value': '0.040',
+      'trend': 'Best 14-day block',
+    },
+    'race_results': [
+      {
+        'event': 'North Tyneside 10K',
+        'time': '36:42',
+        'result': 'Power of 10 verified',
+      },
+      {'event': 'Town Moor 5K', 'time': '17:29', 'result': 'Course PB'},
+    ],
+    'challenge_flags': [
+      {'label': 'Sandbagger check', 'value': 'Clear'},
+      {'label': 'Slacker check', 'value': 'Training consistent'},
+    ],
+    'map_bingo_tiles': [
+      {'label': 'A1', 'visited': true},
+      {'label': 'A2', 'visited': false},
+      {'label': 'A3', 'visited': false},
+      {'label': 'A4', 'visited': true},
+      {'label': 'B1', 'visited': true},
+      {'label': 'B2', 'visited': false},
+      {'label': 'B3', 'visited': false},
+      {'label': 'B4', 'visited': true},
+      {'label': 'C1', 'visited': false},
+      {'label': 'C2', 'visited': true},
+      {'label': 'C3', 'visited': true},
+      {'label': 'C4', 'visited': false},
+      {'label': 'D1', 'visited': false},
+      {'label': 'D2', 'visited': false},
+      {'label': 'D3', 'visited': true},
+      {'label': 'D4', 'visited': false},
+    ],
+  },
+};
+</file>
+
+<file path="lib/src/core/theme/club_theme_config.dart">
+import 'package:flutter/material.dart';
+
+@immutable
+class ClubThemeConfig {
+  const ClubThemeConfig({
+    required this.name,
+    required this.colors,
+    required this.buttons,
+    required this.fontFamily,
+    required this.borderRadius,
+    required this.edgePadding,
+  });
+
+  final String name;
+  final ClubThemeColors colors;
+  final ClubButtonThemes buttons;
+  final String fontFamily;
+  final double borderRadius;
+  final double edgePadding;
+
+  Color get primaryColor => colors.primary;
+  Color get backgroundColor => colors.background;
+  Color get surfaceColor => colors.surface;
+  Color get strokeColor => colors.outline;
+
+  factory ClubThemeConfig.fromJson(Map<String, dynamic> json) {
+    final colorsJson = json['colors'] as Map<String, dynamic>;
+    final buttonsJson = json['buttons'] as Map<String, dynamic>;
+    final typographyJson = json['typography'] as Map<String, dynamic>;
+    final shapeJson = json['shape'] as Map<String, dynamic>;
+    final spacingJson = json['spacing'] as Map<String, dynamic>;
+
+    return ClubThemeConfig(
+      name: json['name'] as String,
+      colors: ClubThemeColors.fromJson(colorsJson),
+      buttons: ClubButtonThemes.fromJson(buttonsJson),
+      fontFamily: typographyJson['fontFamily'] as String,
+      borderRadius: (shapeJson['borderRadius'] as num).toDouble(),
+      edgePadding: (spacingJson['edgePadding'] as num).toDouble(),
+    );
+  }
+
+  factory ClubThemeConfig.fromMap(Map<String, dynamic> json) {
+    return ClubThemeConfig.fromJson(json);
+  }
+
+  ThemeData toThemeData() {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(borderRadius),
+    );
+    final buttonPadding = EdgeInsets.all(edgePadding / 1.5);
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: colors.primary,
+          brightness: _brightnessFor(colors.background),
+        ).copyWith(
+          primary: colors.primary,
+          onPrimary: colors.onPrimary,
+          primaryContainer: colors.primaryContainer,
+          onPrimaryContainer: colors.onPrimaryContainer,
+          secondary: colors.secondary,
+          onSecondary: colors.onSecondary,
+          secondaryContainer: colors.secondaryContainer,
+          onSecondaryContainer: colors.onSecondaryContainer,
+          tertiary: colors.tertiary,
+          onTertiary: colors.onTertiary,
+          tertiaryContainer: colors.tertiaryContainer,
+          onTertiaryContainer: colors.onTertiaryContainer,
+          error: colors.error,
+          onError: colors.onError,
+          surface: colors.surface,
+          onSurface: colors.onSurface,
+          surfaceContainerHighest: colors.surfaceVariant,
+          surfaceContainerHigh: colors.surfaceVariant,
+          surfaceContainer: colors.surface,
+          surfaceContainerLow: colors.surface,
+          surfaceContainerLowest: colors.background,
+          onSurfaceVariant: colors.onSurfaceVariant,
+          outline: colors.outline,
+          outlineVariant: colors.outlineVariant,
+          inverseSurface: colors.inverseSurface,
+          onInverseSurface: colors.inverseOnSurface,
+          inversePrimary: colors.inversePrimary,
+          surfaceTint: Colors.transparent,
+        );
+
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: colors.background,
+      fontFamily: fontFamily.isEmpty ? null : fontFamily,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+    );
+
+    return base.copyWith(
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+        backgroundColor: colors.background,
+        foregroundColor: colors.onBackground,
+        titleTextStyle: base.textTheme.titleLarge?.copyWith(
+          color: colors.onBackground,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0,
+        ),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: colors.surface,
+        selectedItemColor: colors.primary,
+        unselectedItemColor: colors.onSurfaceVariant,
+        elevation: 0,
+        type: BottomNavigationBarType.fixed,
+      ),
+      dividerTheme: DividerThemeData(
+        color: colors.outlineVariant,
+        thickness: 1,
+        space: 1,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: _buttonStyle(buttons.elevated, shape, buttonPadding),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: _buttonStyle(buttons.filled, shape, buttonPadding),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: _buttonStyle(
+          buttons.outlined,
+          shape,
+          buttonPadding,
+          border: true,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: _buttonStyle(buttons.text, shape, buttonPadding),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: _stateColor(
+            buttons.icon.foregroundColor,
+            buttons.icon.disabledForegroundColor,
+          ),
+        ),
+      ),
+      textTheme: base.textTheme
+          .apply(
+            bodyColor: colors.onBackground,
+            displayColor: colors.onBackground,
+          )
+          .copyWith(
+            headlineMedium: base.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+            headlineSmall: base.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+            titleMedium: base.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+            labelLarge: base.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+      extensions: <ThemeExtension<dynamic>>[
+        ClubThemeTokens(
+          strokeColor: colors.outline,
+          subtleStrokeColor: colors.outlineVariant,
+          subtleFillColor: colors.surfaceVariant,
+          successColor: colors.success,
+          warningColor: colors.warning,
+          borderRadius: borderRadius,
+          edgePadding: edgePadding,
+        ),
+      ],
+    );
+  }
+
+  ButtonStyle _buttonStyle(
+    ClubButtonColorSet colors,
+    OutlinedBorder shape,
+    EdgeInsets padding, {
+    bool border = false,
+  }) {
+    return ButtonStyle(
+      elevation: const WidgetStatePropertyAll(0),
+      shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+      surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+      backgroundColor: _stateColor(
+        colors.backgroundColor,
+        colors.disabledBackgroundColor,
+      ),
+      foregroundColor: _stateColor(
+        colors.foregroundColor,
+        colors.disabledForegroundColor,
+      ),
+      padding: WidgetStatePropertyAll(padding),
+      shape: WidgetStatePropertyAll(shape),
+      side: border
+          ? WidgetStateProperty.resolveWith((states) {
+              final color = states.contains(WidgetState.disabled)
+                  ? colors.disabledBorderColor
+                  : colors.borderColor;
+              return BorderSide(color: color ?? this.colors.outline);
+            })
+          : null,
+    );
+  }
+
+  static WidgetStateProperty<Color?> _stateColor(
+    Color? enabled,
+    Color? disabled,
+  ) {
+    return WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.disabled)) {
+        return disabled;
+      }
+
+      return enabled;
+    });
+  }
+
+  static Brightness _brightnessFor(Color color) {
+    return ThemeData.estimateBrightnessForColor(color);
+  }
+}
+
+@immutable
+class ClubThemeColors {
+  const ClubThemeColors({
+    required this.primary,
+    required this.onPrimary,
+    required this.primaryContainer,
+    required this.onPrimaryContainer,
+    required this.secondary,
+    required this.onSecondary,
+    required this.secondaryContainer,
+    required this.onSecondaryContainer,
+    required this.tertiary,
+    required this.onTertiary,
+    required this.tertiaryContainer,
+    required this.onTertiaryContainer,
+    required this.background,
+    required this.onBackground,
+    required this.surface,
+    required this.onSurface,
+    required this.surfaceVariant,
+    required this.onSurfaceVariant,
+    required this.outline,
+    required this.outlineVariant,
+    required this.error,
+    required this.onError,
+    required this.success,
+    required this.warning,
+    required this.inverseSurface,
+    required this.inverseOnSurface,
+    required this.inversePrimary,
+  });
+
+  final Color primary;
+  final Color onPrimary;
+  final Color primaryContainer;
+  final Color onPrimaryContainer;
+  final Color secondary;
+  final Color onSecondary;
+  final Color secondaryContainer;
+  final Color onSecondaryContainer;
+  final Color tertiary;
+  final Color onTertiary;
+  final Color tertiaryContainer;
+  final Color onTertiaryContainer;
+  final Color background;
+  final Color onBackground;
+  final Color surface;
+  final Color onSurface;
+  final Color surfaceVariant;
+  final Color onSurfaceVariant;
+  final Color outline;
+  final Color outlineVariant;
+  final Color error;
+  final Color onError;
+  final Color success;
+  final Color warning;
+  final Color inverseSurface;
+  final Color inverseOnSurface;
+  final Color inversePrimary;
+
+  factory ClubThemeColors.fromJson(Map<String, dynamic> json) {
+    return ClubThemeColors(
+      primary: _colorFromHex(json['primary'] as String),
+      onPrimary: _colorFromHex(json['onPrimary'] as String),
+      primaryContainer: _colorFromHex(json['primaryContainer'] as String),
+      onPrimaryContainer: _colorFromHex(json['onPrimaryContainer'] as String),
+      secondary: _colorFromHex(json['secondary'] as String),
+      onSecondary: _colorFromHex(json['onSecondary'] as String),
+      secondaryContainer: _colorFromHex(json['secondaryContainer'] as String),
+      onSecondaryContainer: _colorFromHex(
+        json['onSecondaryContainer'] as String,
+      ),
+      tertiary: _colorFromHex(json['tertiary'] as String),
+      onTertiary: _colorFromHex(json['onTertiary'] as String),
+      tertiaryContainer: _colorFromHex(json['tertiaryContainer'] as String),
+      onTertiaryContainer: _colorFromHex(json['onTertiaryContainer'] as String),
+      background: _colorFromHex(json['background'] as String),
+      onBackground: _colorFromHex(json['onBackground'] as String),
+      surface: _colorFromHex(json['surface'] as String),
+      onSurface: _colorFromHex(json['onSurface'] as String),
+      surfaceVariant: _colorFromHex(json['surfaceVariant'] as String),
+      onSurfaceVariant: _colorFromHex(json['onSurfaceVariant'] as String),
+      outline: _colorFromHex(json['outline'] as String),
+      outlineVariant: _colorFromHex(json['outlineVariant'] as String),
+      error: _colorFromHex(json['error'] as String),
+      onError: _colorFromHex(json['onError'] as String),
+      success: _colorFromHex(json['success'] as String),
+      warning: _colorFromHex(json['warning'] as String),
+      inverseSurface: _colorFromHex(json['inverseSurface'] as String),
+      inverseOnSurface: _colorFromHex(json['inverseOnSurface'] as String),
+      inversePrimary: _colorFromHex(json['inversePrimary'] as String),
+    );
+  }
+
+  static Color _colorFromHex(String value) {
+    final hex = value.replaceFirst('#', '');
+    final normalized = hex.length == 6 ? 'FF$hex' : hex;
+    return Color(int.parse(normalized, radix: 16));
+  }
+}
+
+@immutable
+class ClubButtonThemes {
+  const ClubButtonThemes({
+    required this.elevated,
+    required this.filled,
+    required this.outlined,
+    required this.text,
+    required this.icon,
+  });
+
+  final ClubButtonColorSet elevated;
+  final ClubButtonColorSet filled;
+  final ClubButtonColorSet outlined;
+  final ClubButtonColorSet text;
+  final ClubButtonColorSet icon;
+
+  factory ClubButtonThemes.fromJson(Map<String, dynamic> json) {
+    return ClubButtonThemes(
+      elevated: ClubButtonColorSet.fromJson(
+        json['elevated'] as Map<String, dynamic>,
+      ),
+      filled: ClubButtonColorSet.fromJson(
+        json['filled'] as Map<String, dynamic>,
+      ),
+      outlined: ClubButtonColorSet.fromJson(
+        json['outlined'] as Map<String, dynamic>,
+      ),
+      text: ClubButtonColorSet.fromJson(json['text'] as Map<String, dynamic>),
+      icon: ClubButtonColorSet.fromJson(json['icon'] as Map<String, dynamic>),
+    );
+  }
+}
+
+@immutable
+class ClubButtonColorSet {
+  const ClubButtonColorSet({
+    required this.foregroundColor,
+    this.backgroundColor,
+    this.disabledBackgroundColor,
+    this.disabledForegroundColor,
+    this.borderColor,
+    this.disabledBorderColor,
+  });
+
+  final Color? backgroundColor;
+  final Color foregroundColor;
+  final Color? disabledBackgroundColor;
+  final Color? disabledForegroundColor;
+  final Color? borderColor;
+  final Color? disabledBorderColor;
+
+  factory ClubButtonColorSet.fromJson(Map<String, dynamic> json) {
+    return ClubButtonColorSet(
+      backgroundColor: _optionalColor(json['backgroundColor']),
+      foregroundColor: _colorFromHex(json['foregroundColor'] as String),
+      disabledBackgroundColor: _optionalColor(json['disabledBackgroundColor']),
+      disabledForegroundColor: _optionalColor(json['disabledForegroundColor']),
+      borderColor: _optionalColor(json['borderColor']),
+      disabledBorderColor: _optionalColor(json['disabledBorderColor']),
+    );
+  }
+
+  static Color? _optionalColor(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+
+    return _colorFromHex(value);
+  }
+
+  static Color _colorFromHex(String value) {
+    final hex = value.replaceFirst('#', '');
+    final normalized = hex.length == 6 ? 'FF$hex' : hex;
+    return Color(int.parse(normalized, radix: 16));
+  }
+}
+
+@immutable
+class ClubThemeTokens extends ThemeExtension<ClubThemeTokens> {
+  const ClubThemeTokens({
+    required this.strokeColor,
+    required this.subtleStrokeColor,
+    required this.subtleFillColor,
+    required this.successColor,
+    required this.warningColor,
+    required this.borderRadius,
+    required this.edgePadding,
+  });
+
+  final Color strokeColor;
+  final Color subtleStrokeColor;
+  final Color subtleFillColor;
+  final Color successColor;
+  final Color warningColor;
+  final double borderRadius;
+  final double edgePadding;
+
+  @override
+  ClubThemeTokens copyWith({
+    Color? strokeColor,
+    Color? subtleStrokeColor,
+    Color? subtleFillColor,
+    Color? successColor,
+    Color? warningColor,
+    double? borderRadius,
+    double? edgePadding,
+  }) {
+    return ClubThemeTokens(
+      strokeColor: strokeColor ?? this.strokeColor,
+      subtleStrokeColor: subtleStrokeColor ?? this.subtleStrokeColor,
+      subtleFillColor: subtleFillColor ?? this.subtleFillColor,
+      successColor: successColor ?? this.successColor,
+      warningColor: warningColor ?? this.warningColor,
+      borderRadius: borderRadius ?? this.borderRadius,
+      edgePadding: edgePadding ?? this.edgePadding,
+    );
+  }
+
+  @override
+  ClubThemeTokens lerp(ThemeExtension<ClubThemeTokens>? other, double t) {
+    if (other is! ClubThemeTokens) {
+      return this;
+    }
+
+    return ClubThemeTokens(
+      strokeColor: Color.lerp(strokeColor, other.strokeColor, t) ?? strokeColor,
+      subtleStrokeColor:
+          Color.lerp(subtleStrokeColor, other.subtleStrokeColor, t) ??
+          subtleStrokeColor,
+      subtleFillColor:
+          Color.lerp(subtleFillColor, other.subtleFillColor, t) ??
+          subtleFillColor,
+      successColor:
+          Color.lerp(successColor, other.successColor, t) ?? successColor,
+      warningColor:
+          Color.lerp(warningColor, other.warningColor, t) ?? warningColor,
+      borderRadius: _lerpDouble(borderRadius, other.borderRadius, t),
+      edgePadding: _lerpDouble(edgePadding, other.edgePadding, t),
+    );
+  }
+
+  static ClubThemeTokens of(BuildContext context) {
+    return Theme.of(context).extension<ClubThemeTokens>() ??
+        const ClubThemeTokens(
+          strokeColor: Color(0xFFDDDDDD),
+          subtleStrokeColor: Color(0xFFEFEFEF),
+          subtleFillColor: Color(0xFFF7F7F7),
+          successColor: Color(0xFF1D7A46),
+          warningColor: Color(0xFFB7791F),
+          borderRadius: 8,
+          edgePadding: 16,
+        );
+  }
+
+  static double _lerpDouble(double a, double b, double t) {
+    return a + (b - a) * t;
+  }
+}
+</file>
+
+<file path="lib/src/core/theme/mock_themes.dart">
+const tyneBridgeHarriersTheme = <String, dynamic>{
+  'name': 'Tyne Bridge Harriers',
+  'colors': {
+    'primary': '#050505',
+    'onPrimary': '#FFFFFF',
+    'primaryContainer': '#E8E8E8',
+    'onPrimaryContainer': '#050505',
+    'secondary': '#676767',
+    'onSecondary': '#FFFFFF',
+    'secondaryContainer': '#F1F1F1',
+    'onSecondaryContainer': '#202020',
+    'tertiary': '#9C9C9C',
+    'onTertiary': '#050505',
+    'tertiaryContainer': '#F7F7F7',
+    'onTertiaryContainer': '#202020',
+    'background': '#FFFFFF',
+    'onBackground': '#111111',
+    'surface': '#FFFFFF',
+    'onSurface': '#111111',
+    'surfaceVariant': '#F5F5F5',
+    'onSurfaceVariant': '#494949',
+    'outline': '#CFCFCF',
+    'outlineVariant': '#E7E7E7',
+    'error': '#B3261E',
+    'onError': '#FFFFFF',
+    'success': '#1D7A46',
+    'warning': '#B7791F',
+    'inverseSurface': '#111111',
+    'inverseOnSurface': '#FFFFFF',
+    'inversePrimary': '#FFFFFF',
+  },
+  'buttons': {
+    'elevated': {
+      'backgroundColor': '#050505',
+      'foregroundColor': '#FFFFFF',
+      'disabledBackgroundColor': '#E7E7E7',
+      'disabledForegroundColor': '#777777',
+    },
+    'filled': {
+      'backgroundColor': '#050505',
+      'foregroundColor': '#FFFFFF',
+      'disabledBackgroundColor': '#E7E7E7',
+      'disabledForegroundColor': '#777777',
+    },
+    'outlined': {
+      'backgroundColor': '#FFFFFF',
+      'foregroundColor': '#050505',
+      'borderColor': '#050505',
+      'disabledForegroundColor': '#777777',
+      'disabledBorderColor': '#D7D7D7',
+    },
+    'text': {
+      'foregroundColor': '#050505',
+      'disabledForegroundColor': '#777777',
+    },
+    'icon': {
+      'foregroundColor': '#050505',
+      'disabledForegroundColor': '#777777',
+    },
+  },
+  'typography': {'fontFamily': ''},
+  'shape': {'borderRadius': 0.0},
+  'spacing': {'edgePadding': 28.0},
+};
+
+const heatonHarriersTheme = <String, dynamic>{
+  'name': 'Heaton Harriers',
+  'colors': {
+    'primary': '#00A676',
+    'onPrimary': '#04110D',
+    'primaryContainer': '#B9FFE4',
+    'onPrimaryContainer': '#04110D',
+    'secondary': '#F7C948',
+    'onSecondary': '#111111',
+    'secondaryContainer': '#302A12',
+    'onSecondaryContainer': '#FFE79B',
+    'tertiary': '#3DDCFF',
+    'onTertiary': '#04110D',
+    'tertiaryContainer': '#05323A',
+    'onTertiaryContainer': '#B7F4FF',
+    'background': '#050806',
+    'onBackground': '#F7FFF9',
+    'surface': '#101612',
+    'onSurface': '#F7FFF9',
+    'surfaceVariant': '#18231D',
+    'onSurfaceVariant': '#CDE8D8',
+    'outline': '#37D399',
+    'outlineVariant': '#254634',
+    'error': '#FF6B6B',
+    'onError': '#111111',
+    'success': '#00A676',
+    'warning': '#F7C948',
+    'inverseSurface': '#F7FFF9',
+    'inverseOnSurface': '#050806',
+    'inversePrimary': '#005A3F',
+  },
+  'buttons': {
+    'elevated': {
+      'backgroundColor': '#00A676',
+      'foregroundColor': '#04110D',
+      'disabledBackgroundColor': '#203128',
+      'disabledForegroundColor': '#7F9B8C',
+    },
+    'filled': {
+      'backgroundColor': '#00A676',
+      'foregroundColor': '#04110D',
+      'disabledBackgroundColor': '#203128',
+      'disabledForegroundColor': '#7F9B8C',
+    },
+    'outlined': {
+      'backgroundColor': '#101612',
+      'foregroundColor': '#F7FFF9',
+      'borderColor': '#37D399',
+      'disabledForegroundColor': '#7F9B8C',
+      'disabledBorderColor': '#254634',
+    },
+    'text': {
+      'foregroundColor': '#00A676',
+      'disabledForegroundColor': '#7F9B8C',
+    },
+    'icon': {
+      'foregroundColor': '#F7FFF9',
+      'disabledForegroundColor': '#7F9B8C',
+    },
+  },
+  'typography': {'fontFamily': ''},
+  'shape': {'borderRadius': 0.0},
+  'spacing': {'edgePadding': 14.0},
+};
+
+const claremontTheme = <String, dynamic>{
+  'name': 'Claremont Road Runners',
+  'colors': {
+    'primary': '#B45B37',
+    'onPrimary': '#FFFFFF',
+    'primaryContainer': '#FFE1D2',
+    'onPrimaryContainer': '#432013',
+    'secondary': '#2C7A7B',
+    'onSecondary': '#FFFFFF',
+    'secondaryContainer': '#D5F2EF',
+    'onSecondaryContainer': '#103938',
+    'tertiary': '#856404',
+    'onTertiary': '#FFFFFF',
+    'tertiaryContainer': '#FFE9A6',
+    'onTertiaryContainer': '#3A2A00',
+    'background': '#FFF8F2',
+    'onBackground': '#251915',
+    'surface': '#FFFDF9',
+    'onSurface': '#251915',
+    'surfaceVariant': '#F7E7DA',
+    'onSurfaceVariant': '#62524A',
+    'outline': '#E4C3B0',
+    'outlineVariant': '#F0DCD0',
+    'error': '#B3261E',
+    'onError': '#FFFFFF',
+    'success': '#2F855A',
+    'warning': '#B7791F',
+    'inverseSurface': '#251915',
+    'inverseOnSurface': '#FFF8F2',
+    'inversePrimary': '#FFD3BC',
+  },
+  'buttons': {
+    'elevated': {
+      'backgroundColor': '#B45B37',
+      'foregroundColor': '#FFFFFF',
+      'disabledBackgroundColor': '#EBD9CF',
+      'disabledForegroundColor': '#8A7266',
+    },
+    'filled': {
+      'backgroundColor': '#B45B37',
+      'foregroundColor': '#FFFFFF',
+      'disabledBackgroundColor': '#EBD9CF',
+      'disabledForegroundColor': '#8A7266',
+    },
+    'outlined': {
+      'backgroundColor': '#FFFDF9',
+      'foregroundColor': '#B45B37',
+      'borderColor': '#D49A7E',
+      'disabledForegroundColor': '#8A7266',
+      'disabledBorderColor': '#EBD9CF',
+    },
+    'text': {
+      'foregroundColor': '#B45B37',
+      'disabledForegroundColor': '#8A7266',
+    },
+    'icon': {
+      'foregroundColor': '#B45B37',
+      'disabledForegroundColor': '#8A7266',
+    },
+  },
+  'typography': {'fontFamily': ''},
+  'shape': {'borderRadius': 16.0},
+  'spacing': {'edgePadding': 20.0},
+};
+
+const mockClubThemes = <Map<String, dynamic>>[
+  tyneBridgeHarriersTheme,
+  heatonHarriersTheme,
+  claremontTheme,
+];
+</file>
+
+<file path="lib/main.dart">
+import 'package:flutter/material.dart';
+import 'package:run_track_app/features/achievements/presentation/view_models/achievements_view_model.dart';
+import 'package:run_track_app/features/achievements/presentation/views/achievements_view.dart';
+import 'package:run_track_app/features/activity/presentation/view_models/run_track_view_model.dart';
+import 'package:run_track_app/features/activity/presentation/views/run_track_view.dart';
+import 'package:run_track_app/features/club_hub/presentation/view_models/club_hub_view_model.dart';
+import 'package:run_track_app/features/club_hub/presentation/views/club_hub_view.dart';
+import 'package:run_track_app/features/profile/presentation/view_models/you_view_model.dart';
+import 'package:run_track_app/features/profile/presentation/views/you_tab.dart';
+import 'package:run_track_app/src/core/data/mock_run_track_repository.dart';
+import 'package:run_track_app/src/core/theme/club_theme_config.dart';
+
+final ValueNotifier<bool> useMocksNotifier = ValueNotifier<bool>(true);
+
+void main() {
+  const repository = MockRunTrackRepository();
+
+  runApp(RunTrackApp(viewModel: RunTrackAppViewModel(repository: repository)));
+}
+
+@immutable
+class RunTrackAppState {
+  const RunTrackAppState({
+    required this.clubName,
+    required this.clubShortName,
+    required this.activeClubTheme,
+    required this.selectedTabIndex,
+  });
+
+  final String clubName;
+  final String clubShortName;
+  final ClubThemeConfig activeClubTheme;
+  final int selectedTabIndex;
+}
+
+class RunTrackAppViewModel extends ChangeNotifier {
+  factory RunTrackAppViewModel({required MockRunTrackRepository repository}) {
+    return RunTrackAppViewModel._(repository);
+  }
+
+  RunTrackAppViewModel._(this._repository) {
+    final clubProfile = _repository.fetchDefaultClubProfile();
+    _clubId = clubProfile['id'] as String;
+    _clubName = clubProfile['name'] as String;
+    _clubShortName = clubProfile['shortName'] as String;
+    _clubTheme = ClubThemeConfig.fromJson(
+      clubProfile['theme_json'] as Map<String, dynamic>,
+    );
+    youViewModel = YouViewModel(repository: _repository, clubId: _clubId);
+    runTrackViewModel = RunTrackViewModel(
+      repository: _repository,
+      clubId: _clubId,
+    );
+    clubHubViewModel = ClubHubViewModel(
+      repository: _repository,
+      clubId: _clubId,
+    );
+    achievementsViewModel = AchievementsViewModel(
+      repository: _repository,
+      clubId: _clubId,
+    );
+  }
+
+  final MockRunTrackRepository _repository;
+  late final String _clubId;
+  late final String _clubName;
+  late final String _clubShortName;
+  late final ClubThemeConfig _clubTheme;
+  int _selectedTabIndex = 0;
+
+  late final YouViewModel youViewModel;
+  late final RunTrackViewModel runTrackViewModel;
+  late final ClubHubViewModel clubHubViewModel;
+  late final AchievementsViewModel achievementsViewModel;
+
+  RunTrackAppState get state {
+    return RunTrackAppState(
+      clubName: _clubName,
+      clubShortName: _clubShortName,
+      activeClubTheme: _clubTheme,
+      selectedTabIndex: _selectedTabIndex,
+    );
+  }
+
+  void selectTab(int index) {
+    _selectedTabIndex = index;
+    notifyListeners();
+  }
+}
+
+class RunTrackApp extends StatelessWidget {
+  const RunTrackApp({required this.viewModel, super.key});
+
+  final RunTrackAppViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) {
+        final appState = viewModel.state;
+
+        return MaterialApp(
+          title: appState.clubName,
+          debugShowCheckedModeBanner: false,
+          theme: appState.activeClubTheme.toThemeData(),
+          home: RunTrackShell(viewModel: viewModel, appState: appState),
+        );
+      },
+    );
+  }
+}
+
+class RunTrackShell extends StatelessWidget {
+  const RunTrackShell({
+    required this.viewModel,
+    required this.appState,
+    super.key,
+  });
+
+  final RunTrackAppViewModel viewModel;
+  final RunTrackAppState appState;
+
+  List<_ShellTab> get _tabs {
+    return [
+      _ShellTab(
+        title: 'You',
+        icon: Icons.person_outline,
+        activeIcon: Icons.person,
+        view: YouTabScreen(viewModel: viewModel.youViewModel),
+      ),
+      _ShellTab(
+        title: 'RunTrack',
+        icon: Icons.directions_run_outlined,
+        activeIcon: Icons.directions_run,
+        view: RunTrackView(viewModel: viewModel.runTrackViewModel),
+      ),
+      _ShellTab(
+        title: 'Club',
+        icon: Icons.groups_outlined,
+        activeIcon: Icons.groups,
+        view: ClubHubView(viewModel: viewModel.clubHubViewModel),
+      ),
+      _ShellTab(
+        title: 'Achievements',
+        icon: Icons.emoji_events_outlined,
+        activeIcon: Icons.emoji_events,
+        view: AchievementsView(viewModel: viewModel.achievementsViewModel),
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ClubThemeTokens.of(context);
+    final tabs = _tabs;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Expanded(child: Text(tabs[appState.selectedTabIndex].title)),
+            Flexible(
+              child: Text(
+                appState.clubShortName,
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: IndexedStack(
+        index: appState.selectedTabIndex,
+        children: [for (final tab in tabs) tab.view],
+      ),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: tokens.strokeColor)),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: appState.selectedTabIndex,
+          onTap: viewModel.selectTab,
+          items: [
+            for (final tab in tabs)
+              BottomNavigationBarItem(
+                icon: Icon(tab.icon),
+                activeIcon: Icon(tab.activeIcon),
+                label: tab.title,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+@immutable
+class _ShellTab {
+  const _ShellTab({
+    required this.title,
+    required this.icon,
+    required this.activeIcon,
+    required this.view,
+  });
+
+  final String title;
+  final IconData icon;
+  final IconData activeIcon;
+  final Widget view;
+}
+</file>
+
+</files>
