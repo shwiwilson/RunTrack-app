@@ -5,6 +5,7 @@ set search_path=public,extensions;
 select no_plan();
 insert into auth.users(id,email,email_confirmed_at) values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','health-fixture@example.test',now());
 insert into public.profiles(id,display_name) values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Health fixture');
+select public.record_health_consent('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-11-12-v1');
 insert into public.health_connections(id,user_id,provider,status,provider_user_id) values('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','google_health','connected','provider-fixture-id');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);

@@ -27,6 +27,7 @@ Deno.serve(handled(async (request) => {
       "session_rsvps",
       "race_results",
       "health_connections",
+      "health_data_consents",
     ]
   ) {
     const rows: unknown[] = [];

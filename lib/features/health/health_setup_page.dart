@@ -42,6 +42,9 @@ class _HealthSetupPageState extends State<HealthSetupPage>
   final _companion = TextEditingController(text: 'Garmin Connect');
   int _step = 0;
   bool _nativeReady = false, _googleReady = false, _busy = true;
+  // Never restore a checkbox from saved setup progress or infer agreement.
+  bool _healthConsentAccepted = false, _activeHealthConsent = false;
+  static const _healthConsentVersion = '2026-11-12-v1';
   String? _message;
   Map<String, dynamic>? _connection;
   String get _key => 'health_setup_${widget.client.auth.currentUser!.id}';
@@ -174,7 +177,22 @@ class _HealthSetupPageState extends State<HealthSetupPage>
         .eq('user_id', widget.client.auth.currentUser!.id)
         .eq('provider', 'google_health')
         .maybeSingle();
-    if (mounted) setState(() => _connection = connection);
+    final consents = await widget.client
+        .from('health_data_consents')
+        .select('action,consent_version')
+        .eq('user_id', widget.client.auth.currentUser!.id)
+        .eq('provider', 'google_health')
+        .order('id', ascending: false)
+        .limit(1);
+    if (mounted) {
+      setState(() {
+        _connection = connection;
+        _activeHealthConsent =
+            consents.isNotEmpty &&
+            consents.first['action'] == 'granted' &&
+            consents.first['consent_version'] == _healthConsentVersion;
+      });
+    }
   }
 
   Future<void> _run(Future<void> Function() operation) async {
@@ -217,8 +235,15 @@ class _HealthSetupPageState extends State<HealthSetupPage>
   }
 
   Future<void> _connect() async {
+    if (!_healthConsentAccepted) return;
     await _save();
-    final response = await widget.client.functions.invoke('health-connect');
+    final response = await widget.client.functions.invoke(
+      'health-connect',
+      body: {
+        'health_data_consent': true,
+        'consent_version': _healthConsentVersion,
+      },
+    );
     final data = Map<String, dynamic>.from(response.data as Map);
     if (data['status'] == 'setup_required') {
       setState(() => _message = data['message'] as String);
@@ -483,9 +508,34 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                         ),
                       if (_connection?['last_error'] != null)
                         Text(_connection!['last_error'] as String),
+                      if (status == 'connected' && !_activeHealthConsent)
+                        const Text(
+                          'Review the health data consent and reconnect before syncing more workouts.',
+                        ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _healthConsentAccepted,
+                        onChanged: _busy
+                            ? null
+                            : (value) => setState(
+                                () => _healthConsentAccepted = value == true,
+                              ),
+                        title: const Text(
+                          'I explicitly consent to RunTrack reading my Google Health exercise data and storing my running workouts, including times, distance and available heart rate, to import and sync my training history.',
+                        ),
+                        subtitle: const Text(
+                          'This is optional. I can withdraw consent by disconnecting Google Health. Imported runs remain in my account and stay private unless I choose to share them.',
+                        ),
+                      ),
+                      _link(
+                        'Read the privacy notice',
+                        Uri.base.resolve('/privacy.html').toString(),
+                      ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
-                        onPressed: _busy ? null : () => _run(_connect),
+                        onPressed: _busy || !_healthConsentAccepted
+                            ? null
+                            : () => _run(_connect),
                         icon: const Icon(Icons.link),
                         label: Text(
                           status == 'connected'
@@ -495,7 +545,9 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
-                        onPressed: _busy ? null : () => _run(_sync),
+                        onPressed: _busy || !_activeHealthConsent
+                            ? null
+                            : () => _run(_sync),
                         icon: const Icon(Icons.sync),
                         label: const Text('Sync and check workouts'),
                       ),
@@ -503,7 +555,8 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                         onPressed: _busy ? null : () => _run(_refreshStatus),
                         child: const Text('Refresh connection status'),
                       ),
-                      if (status != null && status != 'disconnected')
+                      if (_activeHealthConsent ||
+                          (status != null && status != 'disconnected'))
                         TextButton(
                           onPressed: _busy
                               ? null
@@ -513,6 +566,11 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                                       'health-disconnect',
                                     );
                                   } finally {
+                                    if (mounted) {
+                                      setState(
+                                        () => _healthConsentAccepted = false,
+                                      );
+                                    }
                                     await _refreshStatus();
                                   }
                                   if (mounted) {

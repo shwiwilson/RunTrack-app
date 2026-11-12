@@ -69,6 +69,24 @@ export function check<T>(
   if (result.error) throw new Error("Database operation failed"); // never log payloads or credentials
   return result.data;
 }
+export async function requireHealthConsent(
+  client: SupabaseClient,
+  userId: string,
+  consentId?: number,
+): Promise<void> {
+  const active = check(
+    await client.rpc("health_consent_active", {
+      p_user_id: userId,
+      p_consent_id: consentId ?? null,
+    }),
+  );
+  if (active !== true) {
+    throw new HttpError(
+      403,
+      "Health data consent is missing or withdrawn. Review the consent and reconnect Google Health.",
+    );
+  }
+}
 export const handled =
   (handler: (request: Request) => Promise<Response>) =>
   async (request: Request) => {
@@ -198,17 +216,18 @@ export async function accessToken(
   });
   if (!response.ok) {
     if (response.status === 400 || response.status === 401) {
-      check(
-        await client.rpc("health_credentials_delete", {
-          p_connection_id: connectionId,
-        }),
+      const connection = check(
+        await client.from("health_connections").select("user_id")
+          .eq("id", connectionId).single(),
       );
+      if (!connection) {
+        throw new HttpError(409, "Health connection is unavailable.");
+      }
       check(
-        await client.from("health_connections").update({
-          status: "revoked",
-          last_error:
-            "Google Health permission expired or was revoked. Reconnect.",
-        }).eq("id", connectionId),
+        await client.rpc("withdraw_health_consent", {
+          p_user_id: connection.user_id,
+          p_reason: "provider_revoked",
+        }),
       );
       throw new HttpError(
         401,
@@ -231,6 +250,7 @@ export async function syncConnection(
   reservedJobId?: string,
 ): Promise<{ imported: number; complete: boolean }> {
   const connectionId = String(connection.id);
+  await requireHealthConsent(client, String(connection.user_id));
   const jobId = reservedJobId ?? check(
     await client.rpc("claim_health_sync", { p_connection_id: connectionId }),
   );
@@ -268,6 +288,7 @@ export async function syncConnection(
       imported = 0,
       pages = 0;
     do {
+      await requireHealthConsent(client, String(connection.user_id));
       const url = new URL(
         `${GOOGLE_HEALTH_API}/users/me/dataTypes/exercise/dataPoints:reconcile`,
       );

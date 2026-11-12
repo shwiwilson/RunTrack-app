@@ -14,9 +14,12 @@ import {
   requireUser,
   serviceClient,
 } from "../_shared/health_runtime.ts";
+import { validateHealthConsent } from "../_shared/health_consent.ts";
 Deno.serve(handled(async (request) => {
   if (request.method !== "POST") throw new HttpError(405, "Use POST.");
   const client = serviceClient(), user = await requireUser(request, client);
+  const consent = await request.json().catch(() => null);
+  validateHealthConsent(consent);
   if (configurationRequired().length) {
     return json(request, {
       status: "setup_required",
@@ -38,10 +41,19 @@ Deno.serve(handled(async (request) => {
       "Several connections were started recently. Please wait ten minutes and retry.",
     );
   }
+  // The verified server identity and database clock are the evidence, never a
+  // user ID or timestamp submitted by the browser.
+  const consentId = check(
+    await client.rpc("record_health_consent", {
+      p_user_id: user.id,
+      p_consent_version: consent.consent_version,
+    }),
+  );
   check(
     await client.from("oauth_states").insert({
       state_hash: hash,
       user_id: user.id,
+      health_consent_id: consentId,
       expires_at: new Date(Date.now() + 10 * 60000).toISOString(),
       redirect_uri: env("GOOGLE_HEALTH_REDIRECT_URI"),
       code_verifier_ciphertext: await encrypt(

@@ -11,86 +11,35 @@ import {
 Deno.serve(handled(async (request) => {
   if (request.method !== "POST") throw new HttpError(405, "Use POST.");
   const client = serviceClient(), user = await requireUser(request, client);
-  const connection = check(
-    await client.from("health_connections").select("id").eq("user_id", user.id)
-      .eq("provider", "google_health").maybeSingle(),
+  // Withdrawal, token deletion, state cancellation and local disconnection are
+  // one transaction. A running sync cannot postpone withdrawal.
+  const credentials = check(
+    await client.rpc("withdraw_health_consent", {
+      p_user_id: user.id,
+      p_reason: "disconnect",
+    }),
   );
-  if (connection) {
-    const jobId = check(
-      await client.rpc("claim_health_sync", { p_connection_id: connection.id }),
-    );
-    if (!jobId) {
-      throw new HttpError(
-        409,
-        "A sync is running. Wait a moment before disconnecting.",
-      );
-    }
+  if (credentials?.refresh_token_ciphertext) {
     try {
-      const credentials = check(
-        await client.rpc("health_credentials_get", {
-          p_connection_id: connection.id,
-        }),
+      const token = await decrypt(
+        credentials.refresh_token_ciphertext,
+        env("HEALTH_TOKEN_ENCRYPTION_KEY"),
+        credentials.connection_id,
       );
-      const token = credentials
-        ? await decrypt(
-          credentials.refresh_token_ciphertext,
-          env("HEALTH_TOKEN_ENCRYPTION_KEY"),
-          connection.id,
-        )
-        : null;
-      // Stop local access first; even a failed remote revocation cannot reactivate syncing.
-      check(
-        await client.from("health_connections").update({
-          status: "disconnected",
-          provider_user_id: null,
-          last_error: null,
-          sync_cursor: {},
-        }).eq("id", connection.id),
-      );
-      check(await client.from("oauth_states").delete().eq("user_id", user.id));
-      check(
-        await client.rpc("health_credentials_delete", {
-          p_connection_id: connection.id,
-        }),
-      );
-      if (token) {
-        let response: Response;
-        try {
-          response = await fetch("https://oauth2.googleapis.com/revoke", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ token }),
-            signal: AbortSignal.timeout(20000),
-          });
-        } catch {
-          throw new HttpError(
-            502,
-            "RunTrack is disconnected and local tokens were deleted. Google revocation could not be confirmed; remove RunTrack in Google Account permissions.",
-          );
-        }
-        if (!response.ok && response.status !== 400) {
-          throw new HttpError(
-            502,
-            "RunTrack is disconnected and local tokens were deleted. Google revocation could not be confirmed; remove RunTrack in Google Account permissions.",
-          );
-        }
+      const response = await fetch("https://oauth2.googleapis.com/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!response.ok && response.status !== 400) {
+        throw new Error("Revocation unavailable");
       }
-      check(
-        await client.from("sync_jobs").update({
-          status: "succeeded",
-          finished_at: new Date().toISOString(),
-        }).eq("id", jobId),
+    } catch {
+      throw new HttpError(
+        502,
+        "RunTrack is disconnected, health consent was withdrawn and local tokens were deleted. Google revocation could not be confirmed; remove RunTrack in Google Account permissions.",
       );
-    } catch (error) {
-      check(
-        await client.from("sync_jobs").update({
-          status: "failed",
-          finished_at: new Date().toISOString(),
-          error_message:
-            "Disconnect could not fully finish. Check provider permissions.",
-        }).eq("id", jobId),
-      );
-      throw error;
     }
   }
   return json(request, { status: "disconnected" });

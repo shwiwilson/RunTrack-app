@@ -57,11 +57,22 @@ Deno.serve(handled(async (request) => {
       partial ||= !result.complete;
     } catch (error) {
       failed++;
+      if (error instanceof HttpError && error.status === 403) {
+        if (user) throw error;
+        continue;
+      }
+      if (error instanceof HttpError && error.status === 401) {
+        check(
+          await client.rpc("withdraw_health_consent", {
+            p_user_id: connection.user_id,
+            p_reason: "provider_revoked",
+          }),
+        );
+        continue;
+      }
       check(
         await client.from("health_connections").update({
-          status: error instanceof HttpError && error.status === 401
-            ? "revoked"
-            : "error",
+          status: "error",
           last_error: error instanceof HttpError
             ? error.message
             : "Workout sync could not finish. Please retry.",

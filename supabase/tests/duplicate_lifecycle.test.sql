@@ -4,6 +4,7 @@ set search_path=public,extensions;
 select no_plan();
 insert into auth.users(id,email,email_confirmed_at) values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','duplicate-fixture@example.test',now());
 insert into public.profiles(id,display_name) values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','Duplicate fixture');
+select public.record_health_consent('cccccccc-cccc-4ccc-8ccc-cccccccccccc','2026-11-12-v1');
 insert into public.health_connections(id,user_id,provider,status) values('dddddddd-dddd-4ddd-8ddd-dddddddddddd','cccccccc-cccc-4ccc-8ccc-cccccccccccc','google_health','connected');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',true);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/widgets/form_page.dart';
 
 enum AuthMode { signIn, register, recover }
@@ -158,6 +159,28 @@ class _AuthPageState extends State<AuthPage> {
     _form.currentState?.reset();
   });
 
+  Future<void> _openPrivacy() async {
+    try {
+      final opened = await launchUrl(
+        Uri.base.resolve('privacy.html'),
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      if (opened || !mounted) return;
+    } catch (_) {
+      if (!mounted) return;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Open /privacy.html in your browser, or contact hello@tswebdev.co.uk.',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final register = _mode == AuthMode.register;
@@ -295,6 +318,11 @@ class _AuthPageState extends State<AuthPage> {
                 'No location access is needed. Connecting running data is optional. '
                 'You can export your data or delete your account in Account.',
                 style: Theme.of(context).textTheme.bodySmall,
+              ),
+              TextButton.icon(
+                onPressed: _openPrivacy,
+                icon: const Icon(Icons.privacy_tip_outlined),
+                label: const Text('Privacy and your data'),
               ),
             ],
           ),

@@ -11,6 +11,7 @@ import {
   handled,
   HttpError,
   providerJson,
+  requireHealthConsent,
   serviceClient,
   storeTokens,
   syncConnection,
@@ -52,6 +53,13 @@ async function callback(request: Request): Promise<Response> {
   if (error || !data.user?.email_confirmed_at) {
     throw new HttpError(401, "The initiating account is unavailable.");
   }
+  if (!Number.isSafeInteger(record.health_consent_id)) {
+    throw new HttpError(
+      403,
+      "Start again from RunTrack and review the health data consent.",
+    );
+  }
+  await requireHealthConsent(client, record.user_id, record.health_consent_id);
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -120,6 +128,11 @@ async function callback(request: Request): Promise<Response> {
         "Connection was cancelled. Start again from RunTrack.",
       );
     }
+    await requireHealthConsent(
+      client,
+      record.user_id,
+      record.health_consent_id,
+    );
     check(
       await client.from("health_connections").update({
         status: "error",

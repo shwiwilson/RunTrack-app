@@ -182,7 +182,9 @@ if __name__ == '__main__':
         check(status == 200 and exported['identity']['id'] == athlete_id and
               all(row['id'] == athlete_id for row in exported['profiles']),
               'data export ignores tampered user ID and returns caller records only')
-        status, setup, _ = request('/functions/v1/health-connect', {}, athlete_token)
+        status, _, _ = request('/functions/v1/health-connect', {}, athlete_token)
+        check(status == 400, 'health connection rejects missing explicit consent')
+        status, setup, _ = request('/functions/v1/health-connect', {'health_data_consent': True, 'consent_version': '2026-11-12-v1'}, athlete_token)
         check(status == 200 and setup.get('status') == 'setup_required' and sql('select count(*) from health_connections;') == '0',
               'missing real Google credentials returns setup required without a fake connection')
         # Provider-shaped test fixture exists only inside this disposable local database.

@@ -66,6 +66,7 @@ insert into clubs(id,name) values('44444444-4444-4444-8444-444444444444','Isolat
 insert into club_sessions(id,club_id,title,starts_at,created_by) values('55555555-5555-4555-8555-555555555555','74796e65-6272-4964-8765-686172726965','Real session',now()+interval '1 day','11111111-1111-4111-8111-111111111111');
 insert into club_sessions(id,club_id,title,starts_at) values('66666666-6666-4666-8666-666666666666','44444444-4444-4444-8444-444444444444','Other club session',now());
 insert into session_rsvps(session_id,user_id) values('66666666-6666-4666-8666-666666666666','11111111-1111-4111-8111-111111111111');
+select public.record_health_consent('11111111-1111-4111-8111-111111111111','2026-11-12-v1');
 insert into activities(id,user_id,provider,provider_workout_id,started_at,ended_at,distance_m,active_duration_s,elapsed_duration_s,average_heart_rate) values
  ('77777777-7777-4777-8777-777777777777','11111111-1111-4111-8111-111111111111','google_health','workout-a',now()-interval '1 hour',now(),5000,1500,3600,140);
 insert into health_connections(id,user_id,provider,status) values('88888888-8888-4888-8888-888888888888','11111111-1111-4111-8111-111111111111','google_health','connected');

@@ -41,19 +41,23 @@ Deno.test("expired refresh grant removes credentials and records revocation with
     refresh_token_ciphertext: await encrypt("fixture-refresh", key, connection),
   };
   const fakeClient = {
-    rpc: (name: string) =>
-      Promise.resolve({
-        data: name === "health_credentials_get"
-          ? credentials
-          : (deleted = true, null),
+    rpc: (name: string, args: Record<string, unknown>) => {
+      if (name === "withdraw_health_consent") {
+        deleted = true;
+        revoked = args.p_reason === "provider_revoked" &&
+          args.p_user_id === "fixture-user";
+      }
+      return Promise.resolve({
+        data: name === "health_credentials_get" ? credentials : null,
         error: null,
-      }),
+      });
+    },
     from: () => ({
-      update: (value: { status: string }) => ({
-        eq: () => {
-          revoked = value.status === "revoked";
-          return Promise.resolve({ data: null, error: null });
-        },
+      select: () => ({
+        eq: () => ({
+          single: () =>
+            Promise.resolve({ data: { user_id: "fixture-user" }, error: null }),
+        }),
       }),
     }),
   } as unknown as SupabaseClient;
@@ -75,7 +79,11 @@ Deno.test("expired refresh grant removes credentials and records revocation with
 Deno.test("concurrent sync cannot claim an existing live lease", async () => {
   const { syncConnection } = await import("../_shared/health_runtime.ts");
   const fakeClient = {
-    rpc: () => Promise.resolve({ data: null, error: null }),
+    rpc: (name: string) =>
+      Promise.resolve({
+        data: name === "health_consent_active" ? true : null,
+        error: null,
+      }),
   } as unknown as SupabaseClient;
   try {
     await syncConnection(fakeClient, { id: "fixture" });
@@ -97,7 +105,9 @@ Deno.test("revocation during sync cannot be reported as a successful connected s
   const fakeClient = {
     rpc: (name: string) =>
       Promise.resolve({
-        data: name === "claim_health_sync"
+        data: name === "health_consent_active"
+          ? true
+          : name === "claim_health_sync"
           ? "test-job"
           : name === "health_credentials_get"
           ? credentials
