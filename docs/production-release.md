@@ -49,11 +49,15 @@ Achievements and leaderboard entries are projections of the empty source records
 
 ## Frontend deployment
 
-The configured production origin is **https://run-track-app.vercel.app**. The public Supabase URL/publishable key have been supplied for the frontend build. Publication and browser verification of the final Vercel release are being completed separately; the backend checks above do not by themselves assert that the new frontend release is live.
+The new release is **live at [https://run-track-app.vercel.app](https://run-track-app.vercel.app)** on the existing Vercel Hobby project. Source commit `4b858d83cc02b3059d276237fafa94654614997a` deployed successfully; Vercel confirmed Ready with a 2 minute 3 second build. The deployment is [recorded here](https://vercel.com/shwiwilsons-projects/run-track-app/5n9SVnRnp8nWUkp1NeQwKZgoTAfe).
+
+The pinned Flutter build uses only the fresh production project's URL and publishable key from Vercel configuration. It overrides the old dashboard build settings using `vercel.json`. No bootstrap email or server credentials are in the public source or browser bundle.
+
+Actual production checks passed: root, manifest, service worker, JavaScript bundle and password-recovery URL all returned 200 with the expected content types; the bundle targets the new Supabase project; frame and location-permission protections were present. Chrome rendered the genuine prebootstrap welcome screen and Create account form, including accessible name/email/password controls and the 12-character requirement. No registration form was submitted, so no owner identity or verification message was created by these checks.
 
 ## How to register
 
-Once the new frontend release is confirmed live:
+The release is confirmed live. To create the first genuine account:
 
 1. Open the production URL and choose **Create account**.
 2. Register using the privately designated founding administrator address. The deployment has not created this account.
