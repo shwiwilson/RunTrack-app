@@ -1,0 +1,7 @@
+{
+  "compilerOptions": { "strict": true },
+  "tasks": {
+    "test": "deno test --allow-env tests",
+    "check": "deno check health-connect/index.ts health-callback/index.ts health-sync/index.ts health-webhook/index.ts health-disconnect/index.ts delete-account/index.ts export-data/index.ts"
+  }
+}

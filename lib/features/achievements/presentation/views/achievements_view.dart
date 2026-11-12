@@ -1,772 +1,508 @@
-import 'dart:math' as math;
+import 'package:run_track_app/features/achievements/presentation/views/race_result_editor.dart';
 import 'package:flutter/material.dart';
-import 'package:run_track_app/features/achievements/presentation/view_models/achievements_view_model.dart';
-import 'package:run_track_app/core/widgets/layout_gaps.dart';
-import 'package:run_track_app/core/widgets/premium_card.dart';
-import 'package:run_track_app/core/widgets/entry_animation.dart';
-import 'package:run_track_app/core/widgets/athlete_avatar.dart';
-import 'package:run_track_app/core/extensions/extensions.dart';
-import 'package:run_track_app/core/theme/club_theme_config.dart';
 import 'package:run_track_app/core/theme/premium_typography.dart';
+import 'package:run_track_app/core/widgets/premium_card.dart';
+import 'package:run_track_app/domain/run_track_snapshot.dart';
+import 'package:run_track_app/features/achievements/domain/models/achievements_models.dart';
+import 'package:run_track_app/features/application/run_track_controller.dart';
+import 'package:run_track_app/features/club_hub/domain/models/club_models.dart';
+import 'package:run_track_app/features/shared/feature_widgets.dart';
 
 class AchievementsView extends StatelessWidget {
-  const AchievementsView({required this.viewModel, super.key});
-
-  final AchievementsViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: viewModel,
-      builder: (context, _) {
-        if (viewModel.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (viewModel.state == null) {
-          return const Center(child: Text("No achievements found."));
-        }
-
-        return _AchievementsLayout(state: viewModel.state!);
-      },
-    );
-  }
-}
-
-class _AchievementsLayout extends StatelessWidget {
-  const _AchievementsLayout({required this.state});
-
-  final AchievementsState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: context.spacingTokens.pageInsets,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            EntryAnimation(
-              delay: 75,
-              child: _LeaderboardsSection(leaderboards: state.leaderboards),
-            ),
-            const VerticalGap(),
-            EntryAnimation(
-              delay: 150,
-              child: _RaceResultsCard(results: state.raceResults),
-            ),
-            const VerticalGap(),
-            EntryAnimation(
-              delay: 300,
-              child: _ChallengeFlagsCard(flags: state.challengeFlags),
-            ),
-            const VerticalGap(),
-            EntryAnimation(
-              delay: 450,
-              child: _MapBingoCard(
-                tiles: state.mapTiles,
-                config: state.bingoConfig,
-                polylines: state.recentPolylines,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RaceResultsCard extends StatelessWidget {
-  const _RaceResultsCard({required this.results});
-
-  final List<RaceResultItem> results;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Verified race results',
-            style: Theme.of(context).textTheme.serifSectionTitle,
-          ),
-          const VerticalGap(),
-          for (final result in results) ...[
-            _RaceResultRow(result: result),
-            if (result != results.last) const _SoftDivider(),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _RaceResultRow extends StatelessWidget {
-  const _RaceResultRow({required this.result});
-
-  final RaceResultItem result;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(result.event, overflow: TextOverflow.ellipsis),
-              Text(
-                result.result,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const HorizontalGap(),
-        Flexible(
-          child: Text(
-            result.time,
-            textAlign: TextAlign.right,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ChallengeFlagsCard extends StatelessWidget {
-  const _ChallengeFlagsCard({required this.flags});
-
-  final List<ChallengeFlag> flags;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Fair-play engine',
-            style: Theme.of(context).textTheme.serifSectionTitle,
-          ),
-          const VerticalGap(),
-          for (final flag in flags) ...[
-            _FlagRow(flag: flag),
-            if (flag != flags.last) const _SoftDivider(),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _FlagRow extends StatelessWidget {
-  const _FlagRow({required this.flag});
-
-  final ChallengeFlag flag;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(child: Text(flag.label)),
-        const HorizontalGap(),
-        Flexible(
-          child: Text(
-            flag.value,
-            textAlign: TextAlign.right,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MapBingoCard extends StatelessWidget {
-  const _MapBingoCard({
-    required this.tiles,
-    required this.config,
-    required this.polylines,
+  const AchievementsView({
+    required this.data,
+    required this.controller,
+    super.key,
   });
-
-  final List<MapBingoTileState> tiles;
-  final MapBingoConfig config;
-  final List<String> polylines;
-
+  final RunTrackSnapshot data;
+  final RunTrackController controller;
   @override
   Widget build(BuildContext context) {
-    final spacingTokens = context.spacingTokens;
-    final tokens = ClubThemeTokens.of(context);
-
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Map bingo',
-            style: Theme.of(context).textTheme.serifSectionTitle,
-          ),
-          Text(
-            'Explore the local grid to unlock rewards',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const VerticalGap(),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(tokens.borderRadius),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                children: [
-                  // Background Map: Fetched via Static API using the config coordinates.
-                  // This mimics the admin-configured area and costs 0 database egress.
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: 0.6,
-                      child: Image.network(
-                        'https://static-maps.yandex.ru/1.x/?ll=${config.centerLng},${config.centerLat}&z=${config.zoom.toInt()}&size=450,450&l=map&lang=en_US',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, _, _) =>
-                            _TechnicalMapBackground(config: config),
-                      ),
-                    ),
-                  ),
-                  // The Bingo Grid: Semi-transparent to reveal the map underneath
-                  GridView.count(
-                    crossAxisCount: config.gridSize,
-                    crossAxisSpacing: spacingTokens.gap,
-                    mainAxisSpacing: spacingTokens.gap,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [for (final tile in tiles) _MapTile(tile: tile)],
-                  ),
-                  // The Actual GPS Paths: Drawn ON TOP of the grid with a glow
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _GPSPathPainter(
-                        polylines: polylines,
-                        config: config,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    final achievements = RunningAchievement.calculate(
+      data.activities,
+      now: DateTime.now(),
+      attendedSessions: data.attendanceCount,
     );
-  }
-}
-
-/// Standard Polyline Decoder + Mercator Projection Painter
-class _GPSPathPainter extends CustomPainter {
-  final List<String> polylines;
-  final MapBingoConfig config;
-  final Color color;
-
-  _GPSPathPainter({
-    required this.polylines,
-    required this.config,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // High-visibility neon glow
-    final shadowPaint = Paint()
-      ..color = color.withValues(alpha: 0.5)
-      ..strokeWidth = 6.0
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-
-    final paint = Paint()
-      ..color = color.withValues(alpha: 1.0)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    for (final poly in polylines) {
-      final points = _decodePolyline(poly);
-      if (points.isEmpty) {
-        debugPrint('--- BINGO GPS ERROR: Decoded polyline is empty ---');
-        continue;
-      }
-
-      debugPrint('--- BINGO GPS DEBUG ---');
-      debugPrint(
-        'Polyline: ${poly.substring(0, math.min(8, poly.length))}... Points: ${points.length}',
-      );
-
-      final path = Path();
-      for (int i = 0; i < points.length; i++) {
-        final offset = _project(points[i], size);
-        // Points are in Lng/Lat order in the Point object: x=lat, y=lng
-        final isOffScreen =
-            offset.dx < 0 ||
-            offset.dx > size.width ||
-            offset.dy < 0 ||
-            offset.dy > size.height;
-
-        debugPrint(
-          '  Pt $i: [Lat: ${points[i].x.toStringAsFixed(4)}, Lng: ${points[i].y.toStringAsFixed(4)}] '
-          '-> Screen: (${offset.dx.toStringAsFixed(1)}, ${offset.dy.toStringAsFixed(1)})'
-          '${isOffScreen ? " [OFF-SCREEN]" : ""}',
-        );
-        if (i == 0) {
-          path.moveTo(offset.dx, offset.dy);
-        } else {
-          path.lineTo(offset.dx, offset.dy);
-        }
-      }
-      canvas.drawPath(path, shadowPaint);
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  Offset _project(math.Point<double> point, Size size) {
-    // Map scaling math for the 450x450 static image
-    // Zoom level 14 centered on Quayside
-    final double worldSize = 256.0 * math.pow(2, config.zoom);
-
-    // Calculate the ratio between actual widget size and the requested map image size (450px)
-    // This ensures lines scale correctly with the background image.
-    final double scaleX = size.width / 450.0;
-    final double scaleY = size.height / 450.0;
-
-    double x(double lng) => (lng + 180.0) / 360.0 * worldSize;
-    double y(double lat) {
-      final double sinLat = math.sin(lat * math.pi / 180.0);
-      return (0.5 -
-              math.log((1.0 + sinLat) / (1.0 - sinLat)) / (4.0 * math.pi)) *
-          worldSize;
-    }
-
-    final double mapCenterX = x(config.centerLng);
-    final double mapCenterY = y(config.centerLat);
-
-    // Lat is X, Lng is Y in our math.Point
-    return Offset(
-      size.width / 2 + (x(point.y) - mapCenterX) * scaleX,
-      size.height / 2 + (y(point.x) - mapCenterY) * scaleY,
-    );
-  }
-
-  /// Decodes an encoded polyline string into a list of Lat/Lng points.
-  List<math.Point<double>> _decodePolyline(String encoded) {
-    List<math.Point<double>> points = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        if (index >= len) return points;
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-
-      // Standard Polyline ZigZag decoding
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat = (lat + dlat).toSigned(32);
-
-      shift = 0;
-      result = 0;
-      do {
-        if (index >= len) return points;
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng = (lng + dlng).toSigned(32);
-
-      // We use double explicitly to prevent integer wrap-around issues
-      points.add(math.Point(lat.toDouble() / 1e5, lng.toDouble() / 1e5));
-    }
-    return points;
-  }
-
-  @override
-  bool shouldRepaint(covariant _GPSPathPainter oldDelegate) => true;
-}
-
-/// Mimics a map background using lines and technical shapes
-/// This provides the "look" of a map without any network usage.
-class _TechnicalMapBackground extends StatelessWidget {
-  const _TechnicalMapBackground({required this.config});
-  final MapBingoConfig config;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-    return CustomPaint(
-      painter: _MapGeometryPainter(color: color),
-      size: Size.infinite,
-    );
-  }
-}
-
-class _MapGeometryPainter extends CustomPainter {
-  _MapGeometryPainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    // Draw some mock "Roads" and "Rivers"
-    final path = Path()
-      ..moveTo(0, size.height * 0.3)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 0.4,
-        size.width,
-        size.height * 0.2,
-      )
-      ..moveTo(size.width * 0.2, 0)
-      ..lineTo(size.width * 0.8, size.height)
-      ..moveTo(0, size.height * 0.8)
-      ..lineTo(size.width, size.height * 0.7);
-
-    canvas.drawPath(path, paint);
-
-    // Draw some topography-style circles
-    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.6), 40, paint);
-    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.6), 25, paint);
-
-    // Grid dots
-    final dotPaint = Paint()..color = color.withValues(alpha: 0.3);
-    for (double i = 0; i < size.width; i += 20) {
-      for (double j = 0; j < size.height; j += 20) {
-        canvas.drawCircle(Offset(i, j), 0.5, dotPaint);
+    final earned = achievements.where((a) => a.earned).length;
+    final monthly = <String, double>{};
+    final now = DateTime.now();
+    for (final activity in data.clubActivities.where((a) => a.isRunning)) {
+      final start = activity.startedAt.toLocal();
+      if (start.year == now.year &&
+          start.month == now.month &&
+          !activity.endedAt.isAfter(now)) {
+        monthly[activity.userId] =
+            (monthly[activity.userId] ?? 0) + (activity.distanceM ?? 0);
       }
     }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MapGeometryPainter oldDelegate) {
-    return oldDelegate.color != color;
-  }
-}
-
-class _MapTile extends StatelessWidget {
-  const _MapTile({required this.tile});
-
-  final MapBingoTileState tile;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = ClubThemeTokens.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        // Semi-transparent "Glass" effect allows the map background to show through
-        color: tile.visited
-            ? colorScheme.primary.withValues(alpha: 0.6)
-            : colorScheme.surface.withValues(alpha: 0.08),
-        border: Border.all(
-          color: tile.visited
-              ? colorScheme.primary
-              : tokens.strokeColor.withValues(alpha: 0.3),
-          width: 0.5,
-        ),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: tile.visited
-            ? [
-                BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  spreadRadius: -2,
-                ),
-              ]
-            : null,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    tile.label,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: tile.visited
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (tile.visited)
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [Icon(Icons.check, color: colorScheme.onPrimary)],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LeaderboardsSection extends StatelessWidget {
-  const _LeaderboardsSection({required this.leaderboards});
-  final List<LeaderboardPillState> leaderboards;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final ranked = monthly.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return FeaturePage(
       children: [
-        Text(
-          'Club leaderboards',
-          style: Theme.of(context).textTheme.serifSectionTitle,
+        FeatureTitle(
+          'Achievements',
+          subtitle:
+              '$earned earned · Built from your recorded runs and confirmed attendance.',
         ),
-        const VerticalGap(),
-        SizedBox(
-          height: 110,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: leaderboards.length,
-            separatorBuilder: (context, _) => const HorizontalGap(),
-            itemBuilder: (context, index) =>
-                _LeaderboardPill(state: leaderboards[index]),
+        if (earned == 0)
+          const EmptyFeature(
+            icon: Icons.emoji_events_outlined,
+            title: 'Your running achievements start here',
+            message:
+                'No achievements earned yet. Your milestones will appear as you complete runs and attend club sessions.',
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LeaderboardPill extends StatelessWidget {
-  const _LeaderboardPill({required this.state});
-  final LeaderboardPillState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => _showLeaderboardDetail(context, state),
-      borderRadius: BorderRadius.circular(
-        ClubThemeTokens.of(context).borderRadius,
-      ),
-      child: PremiumCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.max,
-        child: Expanded(
-          child: SizedBox(
-            width: 145,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 650 ? 2 : 1;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      _getIcon(state.iconName),
-                      size: 14,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        state.title.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '#${state.userRank}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '${state.userValue}${state.unit}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showLeaderboardDetail(
-    BuildContext context,
-    LeaderboardPillState leaderboard,
-  ) {
-    final theme = Theme.of(context);
-    final tokens = ClubThemeTokens.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(tokens.borderRadius),
-        ),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: tokens.strokeColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    leaderboard.title,
-                    style: theme.textTheme.serifSectionTitle,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                controller: scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: leaderboard.allEntries.length,
-                separatorBuilder: (context, _) => const _SoftDivider(),
-                itemBuilder: (context, index) {
-                  final entry = leaderboard.allEntries[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
+                for (final achievement in achievements)
+                  SizedBox(
+                    width:
+                        (constraints.maxWidth - 16 * (columns - 1)) / columns,
+                    child: PremiumCard(
                       children: [
-                        SizedBox(
-                          width: 32,
-                          child: Text(
-                            '#${entry.rank}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: entry.isCurrentUser
-                                  ? theme.colorScheme.primary
-                                  : null,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              achievement.earned
+                                  ? Icons.emoji_events
+                                  : Icons.emoji_events_outlined,
+                              color: achievement.earned
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
                             ),
-                          ),
-                        ),
-                        AthleteAvatar(
-                          initials: entry.name.initials(),
-                          imageUrl: entry.imageUrl,
-                          size: 32,
-                        ),
-                        const HorizontalGap(),
-                        Expanded(
-                          child: Text(
-                            entry.name,
-                            style: theme.textTheme.bodyLarge,
-                          ),
-                        ),
-                        Text(
-                          '${entry.value}${leaderboard.unit}',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    achievement.title,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(achievement.description),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    achievement.earned
+                                        ? 'Earned'
+                                        : 'Not earned yet',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.labelMedium,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  );
-                },
-              ),
+                  ),
+              ],
+            );
+          },
+        ),
+        PremiumCard(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Club challenges',
+                    style: Theme.of(context).textTheme.serifSectionTitle,
+                  ),
+                ),
+                if (data.membership?.isAdmin == true)
+                  IconButton(
+                    tooltip: 'Create challenge',
+                    onPressed: () => _editChallenge(context),
+                    icon: const Icon(Icons.add),
+                  ),
+              ],
             ),
+            const SizedBox(height: 12),
+            if (data.challenges.isEmpty)
+              Text(
+                data.membership?.isAdmin == true
+                    ? 'No club challenges yet. Create a distance challenge for your members.'
+                    : 'Club challenges will appear here when your club creates them.',
+              ),
+            for (final challenge in data.challenges)
+              _challenge(context, challenge),
           ],
         ),
+        PremiumCard(
+          children: [
+            Text(
+              'Monthly club distance',
+              style: Theme.of(context).textTheme.serifSectionTitle,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Only distances from runs explicitly shared with your club are included. This is not a ranking of private training.',
+            ),
+            const SizedBox(height: 12),
+            if (ranked.isEmpty)
+              const Text('No shared runs on the leaderboard this month.'),
+            for (var i = 0; i < ranked.length; i++)
+              MetricPair(
+                '${i > 0 && ranked[i].value == ranked[i - 1].value ? ranked.indexWhere((e) => e.value == ranked[i].value) + 1 : i + 1}. ${data.memberNames[ranked[i].key] ?? 'Club member'}',
+                distanceLabel(ranked[i].value),
+              ),
+          ],
+        ),
+        PremiumCard(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Race results',
+                    style: Theme.of(context).textTheme.serifSectionTitle,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Add race result',
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (context) =>
+                        RaceResultEditor(controller: controller),
+                  ),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (data.raceResults.isEmpty)
+              const Text('No race results recorded yet.'),
+            for (final race in data.raceResults) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      race.eventName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete race result',
+                    onPressed: controller.saving
+                        ? null
+                        : () async {
+                            final remove = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Delete race result?'),
+                                content: Text(
+                                  'Remove ${race.eventName} from your results?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (remove == true) {
+                              await controller.mutate(
+                                () => controller.repository.deleteRaceResult(
+                                  race.id,
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
+              MetricPair(
+                '${dateLabel(race.eventDate)} · ${distanceLabel(race.distanceM)}',
+                durationLabel(race.durationS),
+              ),
+              Text(
+                race.verified
+                    ? 'Verified result with supporting evidence'
+                    : 'Unverified result',
+              ),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _editChallenge(BuildContext context, [ClubChallenge? challenge]) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) =>
+            _ChallengeEditor(controller: controller, challenge: challenge),
+      );
+  Widget _challenge(BuildContext context, ClubChallenge challenge) {
+    final distance = data.activities
+        .where(
+          (a) =>
+              a.isRunning &&
+              a.duplicateOf == null &&
+              !a.startedAt.isBefore(challenge.startsAt) &&
+              a.startedAt.isBefore(challenge.endsAt) &&
+              !a.endedAt.isAfter(DateTime.now()),
+        )
+        .fold(0.0, (sum, a) => sum + (a.distanceM ?? 0));
+    final ended = !challenge.endsAt.isAfter(DateTime.now());
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  challenge.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              if (data.membership?.isAdmin == true)
+                PopupMenuButton<String>(
+                  tooltip: 'Manage challenge',
+                  onSelected: (action) async {
+                    if (action == 'edit') {
+                      _editChallenge(context, challenge);
+                    } else {
+                      final remove = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete challenge?'),
+                          content: const Text(
+                            'This also removes its participation records.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (remove == true) {
+                        await controller.mutate(
+                          () => controller.repository.deleteChallenge(
+                            challenge.id,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit challenge')),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete challenge'),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          Text(challenge.description),
+          const SizedBox(height: 6),
+          Text(
+            '${dateLabel(challenge.startsAt)} – ${dateLabel(challenge.endsAt)} · ${distanceLabel(challenge.targetDistanceM)}',
+          ),
+          if (challenge.joined) ...[
+            const SizedBox(height: 8),
+            Text('Your recorded distance: ${distanceLabel(distance)}'),
+            if (distance >= challenge.targetDistanceM)
+              const Text('Distance goal reached'),
+          ],
+          if (!ended)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton(
+                onPressed: controller.saving
+                    ? null
+                    : () => controller.mutate(
+                        () => controller.repository.participate(
+                          challenge.id,
+                          !challenge.joined,
+                        ),
+                      ),
+                child: Text(
+                  challenge.joined ? 'Leave challenge' : 'Join challenge',
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
-
-  IconData _getIcon(String name) {
-    switch (name) {
-      case 'verified_user':
-        return Icons.verified_user;
-      case 'timer':
-        return Icons.timer;
-      case 'bed':
-        return Icons.bed;
-      case 'terrain':
-        return Icons.terrain;
-      case 'wb_sunny':
-        return Icons.wb_sunny;
-      case 'groups':
-        return Icons.groups;
-      case 'bolt':
-        return Icons.bolt;
-      case 'whatshot':
-        return Icons.whatshot;
-      case 'map':
-        return Icons.map;
-      default:
-        return Icons.emoji_events;
-    }
-  }
 }
 
-class _SoftDivider extends StatelessWidget {
-  const _SoftDivider();
+class _ChallengeEditor extends StatefulWidget {
+  const _ChallengeEditor({required this.controller, this.challenge});
+  final RunTrackController controller;
+  final ClubChallenge? challenge;
+  @override
+  State<_ChallengeEditor> createState() => _ChallengeEditorState();
+}
+
+class _ChallengeEditorState extends State<_ChallengeEditor> {
+  final form = GlobalKey<FormState>();
+  late final TextEditingController title;
+  late final TextEditingController description;
+  late final TextEditingController distance;
+  late DateTime start;
+  late DateTime end;
+  bool saving = false;
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.challenge;
+    title = TextEditingController(text: c?.title);
+    description = TextEditingController(text: c?.description);
+    distance = TextEditingController(
+      text: c == null ? '' : (c.targetDistanceM / 1000).toString(),
+    );
+    start = c?.startsAt.toLocal() ?? DateTime.now();
+    end = c?.endsAt.toLocal() ?? start.add(const Duration(days: 30));
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.spacingTokens.gap),
-      child: Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
-    );
+  void dispose() {
+    title.dispose();
+    description.dispose();
+    distance.dispose();
+    super.dispose();
   }
+
+  Future<void> pick(bool first) async {
+    final value = await showDatePicker(
+      context: context,
+      initialDate: first ? start : end,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (value != null && mounted) {
+      setState(() {
+        if (first) {
+          start = value;
+        } else {
+          end = value;
+        }
+      });
+    }
+  }
+
+  Future<void> save() async {
+    if (!form.currentState!.validate() || !end.isAfter(start)) return;
+    setState(() => saving = true);
+    final ok = await widget.controller.mutate(
+      () => widget.controller.repository.saveChallenge(
+        id: widget.challenge?.id,
+        clubId: widget.controller.snapshot!.membership!.clubId,
+        title: title.text,
+        description: description.text,
+        startsAt: start,
+        endsAt: end,
+        targetDistanceM: double.parse(distance.text) * 1000,
+      ),
+    );
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context);
+    } else {
+      setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.challenge == null
+          ? 'Create distance challenge'
+          : 'Edit distance challenge',
+    ),
+    content: SizedBox(
+      width: 440,
+      child: SingleChildScrollView(
+        child: Form(
+          key: form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: title,
+                maxLength: 150,
+                decoration: const InputDecoration(labelText: 'Challenge title'),
+                validator: (v) => v!.trim().isEmpty ? 'Enter a title.' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: description,
+                maxLength: 2000,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Description'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: distance,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Target distance in kilometres',
+                ),
+                validator: (v) {
+                  final n = double.tryParse(v ?? '');
+                  return n == null || !n.isFinite || n <= 0
+                      ? 'Enter a positive distance.'
+                      : null;
+                },
+              ),
+              ListTile(
+                title: const Text('Starts'),
+                subtitle: Text(dateLabel(start)),
+                onTap: () => pick(true),
+              ),
+              ListTile(
+                title: const Text('Ends (exclusive)'),
+                subtitle: Text(dateLabel(end)),
+                onTap: () => pick(false),
+              ),
+              if (!end.isAfter(start))
+                const Text('End date must be after the start date.'),
+              if (widget.controller.error != null)
+                Text(widget.controller.error!),
+            ],
+          ),
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: saving ? null : save,
+        child: Text(saving ? 'Saving…' : 'Save challenge'),
+      ),
+    ],
+  );
 }

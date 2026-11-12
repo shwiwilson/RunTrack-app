@@ -1,458 +1,175 @@
 import 'package:flutter/material.dart';
-import 'package:run_track_app/features/profile/presentation/view_models/you_view_model.dart';
-import 'package:run_track_app/core/widgets/layout_gaps.dart';
-import 'package:run_track_app/core/widgets/premium_card.dart';
-import 'package:run_track_app/core/widgets/entry_animation.dart';
-import 'package:run_track_app/core/widgets/athlete_avatar.dart';
-import 'package:run_track_app/core/theme/club_theme_config.dart';
+import 'package:run_track_app/core/extensions/extensions.dart';
 import 'package:run_track_app/core/theme/premium_typography.dart';
-import 'package:run_track_app/core/widgets/biometric_ring.dart';
-import 'package:run_track_app/features/profile/domain/models/biometric_ui_extensions.dart';
-import 'dart:math';
+import 'package:run_track_app/core/widgets/athlete_avatar.dart';
+import 'package:run_track_app/core/widgets/premium_card.dart';
+import 'package:run_track_app/domain/run_track_snapshot.dart';
+import 'package:run_track_app/features/profile/domain/models/you_models.dart';
+import 'package:run_track_app/features/shared/feature_widgets.dart';
 
 class YouTabScreen extends StatelessWidget {
   const YouTabScreen({
-    required this.viewModel,
-    required this.onLogout,
+    required this.data,
+    required this.onConnectHealth,
+    required this.onAccount,
     super.key,
   });
-
-  final YouViewModel viewModel;
-  final VoidCallback onLogout;
-
+  final RunTrackSnapshot data;
+  final VoidCallback onConnectHealth;
+  final VoidCallback onAccount;
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: viewModel,
-      builder: (context, _) {
-        if (viewModel.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (viewModel.state == null) {
-          return const Center(child: Text("Initializing metrics..."));
-        }
-
-        return _YouTabLayout(state: viewModel.state!, onLogout: onLogout);
-      },
-    );
-  }
-}
-
-class _YouTabLayout extends StatelessWidget {
-  const _YouTabLayout({required this.state, required this.onLogout});
-
-  final YouTabState state;
-  final VoidCallback onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: context.spacingTokens.pageInsets,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            EntryAnimation(
-              delay: 0,
-              child: _GreetingCard(state: state, onLogout: onLogout),
-            ),
-            const VerticalGap(),
-            EntryAnimation(delay: 100, child: _ReadinessHero(state: state)),
-            const VerticalGap(),
-            EntryAnimation(delay: 200, child: _EfficiencyCard(state: state)),
-            const VerticalGap(),
-            EntryAnimation(
-              delay: 300,
-              child: _BiometricMatrix(metrics: state.metrics),
-            ),
-            const VerticalGap(),
-            EntryAnimation(
-              delay: 500,
-              child: _BenchmarkPanel(benchmarks: state.benchmarks),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GreetingCard extends StatelessWidget {
-  const _GreetingCard({required this.state, required this.onLogout});
-  final YouTabState state;
-  final VoidCallback onLogout;
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Row(
-        children: [
-          AthleteAvatar(
-            initials: state.athleteInitials,
-            imageUrl: state.athleteImageUrl,
-            size: 32,
-          ),
-          const HorizontalGap(),
-          Expanded(
-            child: Text(
-              '${_getGreeting()}, ${state.athleteName.split(' ').first}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: onLogout,
-            icon: const Icon(Icons.logout_rounded),
-            iconSize: 20,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReadinessHero extends StatelessWidget {
-  const _ReadinessHero({required this.state});
-
-  final YouTabState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Morning readiness',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                    const VerticalGap(),
-                    Text(
-                      state.readinessLabel,
-                      style: Theme.of(context).textTheme.serifTitle,
-                    ),
-                  ],
-                ),
-              ),
-              const HorizontalGap(),
-              Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        BiometricRing(
-                          progress:
-                              (double.tryParse(state.readinessScore) ?? 0) /
-                              100,
-                          color: colorScheme.primary,
-                          strokeWidth: 8,
-                          size: 90,
-                          subtleStrokeColor: ClubThemeTokens.of(
-                            context,
-                          ).subtleStrokeColor,
-                        ),
-                        Text(
-                          state.readinessScore,
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const VerticalGap(),
-          Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
-          const VerticalGap(),
-          Text(
-            state.coachInsight,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EfficiencyCard extends StatelessWidget {
-  const _EfficiencyCard({required this.state});
-  final YouTabState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  state.efficiencyLabel,
-                  style: Theme.of(context).textTheme.serifSectionTitle,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const VerticalGap(),
-                Text(state.efficiencyTrend),
-              ],
-            ),
-          ),
-          const HorizontalGap(),
-          Flexible(
-            child: Text(
-              state.efficiencyValue,
-              textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BiometricMatrix extends StatelessWidget {
-  const _BiometricMatrix({required this.metrics});
-
-  final List<BiometricMetric> metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _SectionHeader('Biometric matrix'),
-          const VerticalGap(),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Calculate dimensions based on available width
-              final availableWidth = constraints.maxWidth;
-              final chartSize = (availableWidth * 0.55).clamp(160.0, 260.0);
-
-              // Increased step and stroke for a bolder look
-              final ringStep = chartSize * 0.24;
-              final strokeWidth = ringStep * 0.42;
-
-              return Row(
-                children: [
-                  // Concentric Rings Stack
-                  SizedBox(
-                    width: chartSize,
-                    height: chartSize,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        for (int i = 0; i < metrics.length; i++)
-                          TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0.0, end: metrics[i].progress),
-                            duration: Duration(milliseconds: 1200 + (i * 200)),
-                            curve: Curves.easeOutQuart,
-                            builder: (context, animatedProgress, _) {
-                              return BiometricRing(
-                                progress: animatedProgress,
-                                color: metrics[i].getStatusColor(
-                                  Theme.of(context).colorScheme.primary,
-                                ),
-                                size: chartSize - (i * ringStep),
-                                strokeWidth: strokeWidth,
-                                label: metrics[i].label.toUpperCase(),
-                                labelAngleOffset: i * (pi / 2),
-                                subtleStrokeColor: ClubThemeTokens.of(
-                                  context,
-                                ).subtleStrokeColor,
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                  const HorizontalGap(),
-                  // Legend - Integrated directly with the ring colors
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (final metric in metrics)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2.0),
-                            child: _MetricLegendItem(metric: metric),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricLegendItem extends StatelessWidget {
-  const _MetricLegendItem({required this.metric});
-
-  final BiometricMetric metric;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final statusColor = metric.getStatusColor(theme.colorScheme.primary);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(2), // Square-ish LEDs
-              boxShadow: [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.4),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-          const HorizontalGap(),
-          Expanded(
-            child: Text(
-              metric.label,
-              style: theme.textTheme.labelMedium,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                metric.value,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                metric.trend,
-                style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BenchmarkPanel extends StatelessWidget {
-  const _BenchmarkPanel({required this.benchmarks});
-
-  final List<BenchmarkMetric> benchmarks;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _SectionHeader('90-day benchmark'),
-          const VerticalGap(),
-          for (final benchmark in benchmarks) ...[
-            _BenchmarkRow(benchmark: benchmark),
-            if (benchmark != benchmarks.last) const _SoftDivider(),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _BenchmarkRow extends StatelessWidget {
-  const _BenchmarkRow({required this.benchmark});
-
-  final BenchmarkMetric benchmark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final now = DateTime.now();
+    final summary = TrainingSummary.calculate(data.activities, now);
+    final recent =
+        data.activities
+            .where((a) => a.isRunning && !a.endedAt.isAfter(now))
+            .toList()
+          ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    return FeaturePage(
       children: [
-        Expanded(child: Text(benchmark.label, overflow: TextOverflow.ellipsis)),
-        const HorizontalGap(),
-        Flexible(
-          child: Text(
-            benchmark.value,
-            textAlign: TextAlign.right,
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
+        Row(
+          children: [
+            AthleteAvatar(
+              initials: data.profile.displayName.initials(),
+              size: 48,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: FeatureTitle(
+                data.profile.displayName.isEmpty
+                    ? 'Your running space'
+                    : 'Hello, ${data.profile.displayName.split(' ').first}',
+                subtitle:
+                    data.membership?.clubName ??
+                    'Your next chapter starts here.',
+              ),
+            ),
+            IconButton(
+              tooltip: 'Account settings',
+              onPressed: onAccount,
+              icon: const Icon(Icons.manage_accounts_outlined),
+            ),
+          ],
         ),
+        if (summary.totalRuns == 0)
+          EmptyFeature(
+            icon: Icons.directions_run,
+            title: 'No runs recorded yet',
+            message:
+                'Connect your running data to see your training history. Your first real run will start your story here.',
+            actionLabel: 'Connect your running data',
+            onAction: onConnectHealth,
+          ),
+        if (summary.totalRuns > 0)
+          PremiumCard(
+            children: [
+              Text(
+                'Your training',
+                style: Theme.of(context).textTheme.serifSectionTitle,
+              ),
+              const SizedBox(height: 12),
+              MetricPair('This week', distanceLabel(summary.weekDistanceM)),
+              MetricPair(
+                'Last week',
+                distanceLabel(summary.previousWeekDistanceM),
+              ),
+              MetricPair('This month', distanceLabel(summary.monthDistanceM)),
+              MetricPair('Recorded runs', '${summary.totalRuns}'),
+              MetricPair(
+                'Active weeks in the last four',
+                '${summary.activeWeeks} / 4',
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Calendar weeks start on Monday. Dates use your device timezone. Totals include only known distances.',
+              ),
+            ],
+          ),
+        PremiumCard(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Running data',
+                    style: Theme.of(context).textTheme.serifSectionTitle,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Manage running data',
+                  onPressed: onConnectHealth,
+                  icon: const Icon(Icons.settings_outlined),
+                ),
+              ],
+            ),
+            if (data.connections.isEmpty) ...[
+              const Text('No activity provider connected.'),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: onConnectHealth,
+                child: const Text('Connect your running data'),
+              ),
+            ],
+            for (final connection in data.connections) ...[
+              MetricPair(
+                connection.provider.replaceAll('_', ' '),
+                switch (connection.status) {
+                  'connected' => 'Connected',
+                  'setup_required' => 'Setup required',
+                  'revoked' => 'Permission revoked',
+                  'error' => 'Connection needs attention',
+                  _ => 'Disconnected',
+                },
+              ),
+              Text(
+                connection.lastSuccessfulSyncAt == null
+                    ? 'No successful sync yet.'
+                    : 'Last successful sync: ${dateTimeLabel(connection.lastSuccessfulSyncAt!)}',
+              ),
+            ],
+          ],
+        ),
+        if (summary.personalBests.isNotEmpty)
+          PremiumCard(
+            children: [
+              Text(
+                'Personal best workouts',
+                style: Theme.of(context).textTheme.serifSectionTitle,
+              ),
+              const SizedBox(height: 10),
+              for (final best in summary.personalBests)
+                MetricPair(
+                  distanceLabel(best.distanceM),
+                  durationLabel(best.activity.elapsedDurationS),
+                ),
+              const SizedBox(height: 10),
+              const Text(
+                'Fastest whole workouts within 1% above each distance, using elapsed time. These are workout benchmarks, not verified race results.',
+              ),
+            ],
+          ),
+        if (recent.isNotEmpty)
+          PremiumCard(
+            children: [
+              Text(
+                'Recent runs',
+                style: Theme.of(context).textTheme.serifSectionTitle,
+              ),
+              const SizedBox(height: 8),
+              for (final run in recent.take(3)) ...[
+                MetricPair(
+                  dateLabel(run.startedAt),
+                  distanceLabel(run.distanceM),
+                ),
+                Text(
+                  '${durationLabel(run.activeDurationS)} active · ${paceLabel(run.paceSecondsPerKm)}',
+                ),
+                const SizedBox(height: 12),
+              ],
+            ],
+          ),
       ],
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(label, style: Theme.of(context).textTheme.serifSectionTitle);
-  }
-}
-
-class _SoftDivider extends StatelessWidget {
-  const _SoftDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: context.spacingTokens.gap),
-      child: Divider(color: ClubThemeTokens.of(context).subtleStrokeColor),
     );
   }
 }

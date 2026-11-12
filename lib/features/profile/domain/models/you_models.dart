@@ -1,108 +1,101 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:run_track_app/features/activity/domain/models/activity_models.dart';
 
 @immutable
-class YouTabState {
-  const YouTabState({
-    required this.athleteInitials,
-    this.athleteImageUrl,
-    required this.athleteName,
-    required this.readinessScore,
-    required this.readinessLabel,
-    required this.coachInsight,
-    required this.efficiencyLabel,
-    required this.efficiencyValue,
-    required this.efficiencyTrend,
-    required this.metrics,
-    required this.benchmarks,
-  });
+class AthleteProfile {
+  const AthleteProfile({required this.id, required this.displayName});
+  final String id;
+  final String displayName;
 
-  final String athleteInitials;
-  final String? athleteImageUrl;
-  final String athleteName;
-  final String readinessScore;
-  final String readinessLabel;
-  final String coachInsight;
-  final String efficiencyLabel;
-  final String efficiencyValue;
-  final String efficiencyTrend;
-  final List<BiometricMetric> metrics;
-  final List<BenchmarkMetric> benchmarks;
+  factory AthleteProfile.fromJson(Map<String, dynamic> json) => AthleteProfile(
+    id: json['id'] as String,
+    displayName: json['display_name'] as String? ?? '',
+  );
 }
 
 @immutable
-class BiometricMetric {
-  const BiometricMetric({
-    required this.label,
-    required this.value,
-    required this.trend,
-    required this.status,
+class TrainingSummary {
+  const TrainingSummary({
+    required this.weekDistanceM,
+    required this.previousWeekDistanceM,
+    required this.monthDistanceM,
+    required this.activeWeeks,
+    required this.totalRuns,
+    required this.personalBests,
   });
+  final double weekDistanceM;
+  final double previousWeekDistanceM;
+  final double monthDistanceM;
+  final int activeWeeks;
+  final int totalRuns;
+  final List<WorkoutBest> personalBests;
 
-  final String label;
-  final String value;
-  final String trend;
-  final String status;
-
-  factory BiometricMetric.fromJson(Map<String, dynamic> json) {
-    return BiometricMetric(
-      label: json['label'] as String,
-      value: json['value'] as String,
-      trend: json['trend'] as String,
-      status: json['status'] as String,
+  factory TrainingSummary.calculate(List<Activity> activities, DateTime now) {
+    final localNow = now.toLocal();
+    final today = DateTime(localNow.year, localNow.month, localNow.day);
+    final week = DateTime(
+      today.year,
+      today.month,
+      today.day - today.weekday + 1,
     );
-  }
-
-  double get progress {
-    final lowerLabel = label.toLowerCase();
-    double numericValue = 0.0;
-
-    if (value.contains('h')) {
-      final parts = value.split('h');
-      final hours = double.tryParse(parts[0].trim()) ?? 0.0;
-      double minutes = 0.0;
-      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
-        minutes = double.tryParse(parts[1].trim()) ?? 0.0;
+    final previous = DateTime(week.year, week.month, week.day - 7);
+    final month = DateTime(today.year, today.month);
+    final runs = activities
+        .where(
+          (a) =>
+              a.isRunning && a.duplicateOf == null && !a.endedAt.isAfter(now),
+        )
+        .toList();
+    double distance(DateTime start, DateTime end) => runs
+        .where((a) => !a.startedAt.isBefore(start) && a.startedAt.isBefore(end))
+        .fold(0.0, (sum, a) => sum + (a.distanceM ?? 0));
+    final activeWeeks = runs
+        .where(
+          (a) => !a.startedAt.isBefore(
+            DateTime(week.year, week.month, week.day - 21),
+          ),
+        )
+        .map((a) {
+          final d = a.startedAt.toLocal();
+          return DateTime(d.year, d.month, d.day - d.weekday + 1);
+        })
+        .toSet()
+        .length;
+    final bests = <WorkoutBest>[];
+    // Whole workout times only. Never extrapolate a 5K split from a longer run.
+    for (final target in const [5000.0, 10000.0, 21097.5, 42195.0]) {
+      final candidates =
+          runs
+              .where(
+                (a) =>
+                    a.distanceM != null &&
+                    a.distanceM! >= target &&
+                    a.distanceM! <= target * 1.01 &&
+                    a.elapsedDurationS != null &&
+                    a.elapsedDurationS! > 0,
+              )
+              .toList()
+            ..sort(
+              (a, b) => a.elapsedDurationS!.compareTo(b.elapsedDurationS!),
+            );
+      if (candidates.isNotEmpty) {
+        bests.add(WorkoutBest(distanceM: target, activity: candidates.first));
       }
-      numericValue = hours + (minutes / 60.0);
-    } else {
-      numericValue = double.tryParse(value.split(' ')[0]) ?? 0.0;
     }
-
-    double calculatedProgress;
-
-    if (lowerLabel.contains('hrv')) {
-      calculatedProgress = (numericValue - 20) / 80;
-    } else if (lowerLabel.contains('sleep')) {
-      calculatedProgress = (numericValue - 4.0) / 4.0;
-    } else if (lowerLabel.contains('rhr') ||
-        lowerLabel.contains('heart rate') ||
-        lowerLabel.contains('recovery')) {
-      calculatedProgress = (100 - numericValue) / 60;
-    } else if (lowerLabel.contains('load')) {
-      calculatedProgress = numericValue / 1000;
-    } else {
-      calculatedProgress = (numericValue / 100);
-    }
-
-    return calculatedProgress.clamp(0.1, 1.0);
+    return TrainingSummary(
+      weekDistanceM: distance(week, now.add(const Duration(microseconds: 1))),
+      previousWeekDistanceM: distance(previous, week),
+      monthDistanceM: distance(month, now.add(const Duration(microseconds: 1))),
+      activeWeeks: activeWeeks,
+      totalRuns: runs.length,
+      personalBests: List.unmodifiable(bests),
+    );
   }
-
-  bool get isElite => progress >= 0.85;
-  bool get isGood => progress >= 0.6;
-  bool get isAverage => progress >= 0.4;
 }
 
 @immutable
-class BenchmarkMetric {
-  const BenchmarkMetric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  factory BenchmarkMetric.fromJson(Map<String, dynamic> json) {
-    return BenchmarkMetric(
-      label: json['label'] as String,
-      value: json['value'] as String,
-    );
-  }
+class WorkoutBest {
+  const WorkoutBest({required this.distanceM, required this.activity});
+  final double distanceM;
+  final Activity activity;
 }

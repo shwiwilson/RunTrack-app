@@ -1,0 +1,13 @@
+.git
+.dart_tool
+.pub-cache
+node_modules
+build
+coverage
+test-results
+env.json
+env.*.json
+.env
+.env.*
+supabase/.temp
+supabase/.branches

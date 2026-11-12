@@ -1,116 +1,127 @@
 import 'package:flutter/foundation.dart';
 
 @immutable
-class ClubHubState {
-  const ClubHubState({required this.sessions, required this.stagedItems});
-
-  final List<ClubSessionItem> sessions;
-  final List<NewsletterStagingItem> stagedItems;
+class ClubMembership {
+  const ClubMembership({
+    required this.id,
+    required this.clubId,
+    required this.userId,
+    required this.role,
+    required this.status,
+    required this.clubName,
+    this.theme = const {},
+  });
+  final String id;
+  final String clubId;
+  final String userId;
+  final String role;
+  final String status;
+  final String clubName;
+  final Map<String, dynamic> theme;
+  bool get isAdmin => role == 'admin' && status == 'active';
+  factory ClubMembership.fromJson(Map<String, dynamic> json) {
+    final club = Map<String, dynamic>.from(json['clubs'] as Map? ?? {});
+    return ClubMembership(
+      id: json['id'] as String,
+      clubId: json['club_id'] as String,
+      userId: json['user_id'] as String,
+      role: json['role'] as String,
+      status: json['status'] as String,
+      clubName: club['name'] as String? ?? 'Your club',
+      theme: Map<String, dynamic>.from(club['theme_json'] as Map? ?? {}),
+    );
+  }
 }
 
 @immutable
-class ClubSessionItem {
-  const ClubSessionItem({
+class SessionRsvp {
+  const SessionRsvp({
     required this.id,
+    required this.userId,
+    required this.status,
+    required this.attended,
+  });
+  final String id;
+  final String userId;
+  final String status;
+  final bool attended;
+  factory SessionRsvp.fromJson(Map<String, dynamic> json) => SessionRsvp(
+    id: json['id'] as String,
+    userId: json['user_id'] as String,
+    status: json['status'] as String,
+    attended: json['attended'] == true,
+  );
+}
+
+@immutable
+class ClubSession {
+  const ClubSession({
+    required this.id,
+    required this.clubId,
+    required this.title,
+    required this.details,
+    required this.location,
+    required this.startsAt,
+    this.endsAt,
+    this.rsvps = const [],
+  });
+  final String id;
+  final String clubId;
+  final String title;
+  final String details;
+
+  /// A written meeting point only; the app never asks for location permissions.
+  final String location;
+  final DateTime startsAt;
+  final DateTime? endsAt;
+  final List<SessionRsvp> rsvps;
+  factory ClubSession.fromJson(Map<String, dynamic> json) => ClubSession(
+    id: json['id'] as String,
+    clubId: json['club_id'] as String,
+    title: json['title'] as String,
+    details: json['details'] as String? ?? '',
+    location: json['location'] as String? ?? '',
+    startsAt: DateTime.parse(json['starts_at'] as String).toUtc(),
+    endsAt: json['ends_at'] == null
+        ? null
+        : DateTime.parse(json['ends_at'] as String).toUtc(),
+    rsvps: (json['session_rsvps'] as List? ?? [])
+        .map((e) => SessionRsvp.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+  );
+}
+
+@immutable
+class ClubChallenge {
+  const ClubChallenge({
+    required this.id,
+    required this.clubId,
     required this.title,
     required this.description,
-    required this.date,
-    required this.time,
-    required this.location,
-    this.athleteName,
-    required this.attendees,
-    required this.currentUserRsvp,
+    required this.startsAt,
+    required this.endsAt,
+    required this.targetDistanceM,
+    required this.joined,
   });
-
   final String id;
+  final String clubId;
   final String title;
   final String description;
-  final String date;
-  final String time;
-  final String location;
-  final String? athleteName;
-  final List<ClubSessionAttendee> attendees;
-  final String currentUserRsvp;
-
-  factory ClubSessionItem.fromJson(
-    Map<String, dynamic> json,
-    String currentAthleteId,
-  ) {
-    final attendeesJson = json['attendees'] as List<dynamic>? ?? const [];
-    final attendees = [
-      for (final attendee in attendeesJson)
-        ClubSessionAttendee.fromJson(attendee as Map<String, dynamic>),
-    ];
-
-    // Find current user in attendees to set their RSVP status
-    String status = "none";
-    try {
-      final userAttendee = attendeesJson.firstWhere(
-        (a) => a['athlete_id'] == currentAthleteId,
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final double targetDistanceM;
+  final bool joined;
+  factory ClubChallenge.fromJson(Map<String, dynamic> json, String userId) =>
+      ClubChallenge(
+        id: json['id'] as String,
+        clubId: json['club_id'] as String,
+        title: json['title'] as String,
+        description: json['description'] as String? ?? '',
+        startsAt: DateTime.parse(json['starts_at'] as String).toUtc(),
+        endsAt: DateTime.parse(json['ends_at'] as String).toUtc(),
+        targetDistanceM: (json['target_distance_m'] as num).toDouble(),
+        joined: (json['challenge_participants'] as List? ?? []).any(
+          (e) => e['user_id'] == userId,
+        ),
       );
-      status = userAttendee['rsvp_status'] ?? "none";
-    } catch (_) {}
-
-    return ClubSessionItem(
-      id: json['id']?.toString() ?? '',
-      title: json['title'] as String,
-      description: json['description'] as String,
-      date: json['date'] as String,
-      time: json['time'] as String,
-      location: json['location'] as String,
-      athleteName: json['athlete_name'] as String?,
-      attendees: attendees,
-      currentUserRsvp: status,
-    );
-  }
-}
-
-@immutable
-class ClubSessionAttendee {
-  const ClubSessionAttendee({
-    required this.initials,
-    this.imageUrl,
-    required this.rsvpStatus,
-  });
-
-  final String initials;
-  final String? imageUrl;
-  final String rsvpStatus;
-
-  factory ClubSessionAttendee.fromJson(Map<String, dynamic> json) {
-    return ClubSessionAttendee(
-      initials: json['athlete_initials'] as String,
-      imageUrl: json['athlete_image_url'] as String?,
-      rsvpStatus: json['rsvp_status'] ?? "yes",
-    );
-  }
-}
-
-@immutable
-class NewsletterStagingItem {
-  const NewsletterStagingItem({
-    required this.status,
-    required this.description,
-    required this.date,
-    required this.time,
-    required this.location,
-  });
-
-  final String status;
-  final String description;
-  final String date;
-  final String time;
-  final String location;
-
-  factory NewsletterStagingItem.fromJson(Map<String, dynamic> json) {
-    final extractedJson = json['extracted_json'] as Map<String, dynamic>;
-
-    return NewsletterStagingItem(
-      status: json['status'] as String,
-      description: extractedJson['description'] as String,
-      date: extractedJson['date'] as String,
-      time: extractedJson['time'] as String,
-      location: extractedJson['location'] as String,
-    );
-  }
 }

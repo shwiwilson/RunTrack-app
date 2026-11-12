@@ -1,0 +1,56 @@
+-- Disposable local test database only. Every fixture rolls back.
+begin;
+create extension if not exists pgtap with schema extensions;
+set search_path=public,extensions;
+select no_plan();
+insert into auth.users(id,email,email_confirmed_at) values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','health-fixture@example.test',now());
+insert into public.profiles(id,display_name) values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Health fixture');
+insert into public.health_connections(id,user_id,provider,status,provider_user_id) values('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','google_health','connected','provider-fixture-id');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+select throws_ok($$select public.upsert_health_activity('{}')$$,'42501','permission denied for function upsert_health_activity','browser cannot ingest arbitrary workouts');
+select throws_ok($$select public.claim_health_sync('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')$$,'42501','permission denied for function claim_health_sync','browser cannot claim server jobs');
+select throws_ok($$select public.consume_health_oauth_state('forged-state')$$,'42501','permission denied for function consume_health_oauth_state','browser cannot consume OAuth state');
+select throws_ok($$select * from public.oauth_states$$,'42501','permission denied for table oauth_states','browser cannot enumerate OAuth state');
+select throws_ok($$select public.health_credentials_get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')$$,'42501','permission denied for function health_credentials_get','browser cannot retrieve provider credentials');
+reset role;
+set local role service_role;
+insert into public.oauth_states(state_hash,user_id,expires_at,redirect_uri,code_verifier_ciphertext) values
+ ('correct-state-hash','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',now()+interval '10 minutes','https://example.test/callback','encrypted-fixture'),
+ ('expired-state-hash','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',now()-interval '1 second','https://example.test/callback','encrypted-fixture');
+select is(public.consume_health_oauth_state('tampered-state-hash'),null::jsonb,'tampered OAuth state is not accepted');
+select is(public.consume_health_oauth_state('expired-state-hash'),null::jsonb,'expired OAuth state is not accepted');
+select is(public.consume_health_oauth_state('correct-state-hash')->>'user_id','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','OAuth state remains bound to initiating user');
+select is(public.consume_health_oauth_state('correct-state-hash'),null::jsonb,'OAuth state cannot be replayed');
+select lives_ok($$select public.health_credentials_store('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','encrypted-access','encrypted-refresh',now()+interval '1 hour',array['readonly'])$$,'server stores encrypted credentials');
+select is(public.health_credentials_get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')->>'access_token_ciphertext','encrypted-access','credentials round trip for service only');
+select ok(public.claim_health_sync('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') is not null,'first sync obtains exclusive lease');
+select is(public.claim_health_sync('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),null::uuid,'parallel sync cannot acquire live lease');
+select lives_ok($$select public.upsert_health_activity('{"user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","provider":"google_health","provider_workout_id":"workout-1","started_at":"2026-11-01T10:00:00Z","ended_at":"2026-11-01T10:30:00Z","type":"running","distance_m":5000,"active_duration_s":1500,"elapsed_duration_s":1800}', '[{"lap_index":1,"distance_m":5000,"active_duration_s":1500}]')$$,'canonical running record and lap persist');
+select is((select count(*) from public.activities),1::bigint,'one canonical imported record');
+select is((select visibility from public.activities),'private','import is private by default');
+select is((select count(*) from public.activity_laps),1::bigint,'real provider lap stored');
+select lives_ok($$select public.upsert_health_activity('{"user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","provider":"google_health","provider_workout_id":"workout-1","started_at":"2026-11-01T10:00:00Z","ended_at":"2026-11-01T10:30:00Z","type":"running","distance_m":5100,"active_duration_s":1500,"elapsed_duration_s":1800}')$$,'changing source record upserts idempotently');
+select is((select count(*) from public.activities),1::bigint,'duplicate provider delivery does not create extra run');
+select is((select distance_m::numeric from public.activities),5100::numeric,'upstream correction persists');
+select is((select count(*) from public.activity_laps),0::bigint,'removed provider splits do not linger');
+-- Explicit consent remains intact after provider updates.
+reset role;
+update public.activities set visibility='club',shared_club_id='74796e65-6272-4964-8765-686172726965';
+set local role service_role;
+select public.upsert_health_activity('{"user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","provider":"google_health","provider_workout_id":"workout-1","started_at":"2026-11-01T10:00:00Z","ended_at":"2026-11-01T10:30:00Z","type":"running","distance_m":5100}');
+select is((select visibility from public.activities),'club','upstream updates preserve owner sharing choices');
+select public.upsert_health_activity('{"user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","provider":"google_health","provider_workout_id":"workout-2","started_at":"2026-11-02T10:00:00Z","ended_at":"2026-11-02T10:30:00Z","type":"running","distance_m":5100}');
+select is((select count(*) from public.activities where duplicate_of is null),2::bigint,'similar distance on another date is a distinct run');
+select public.upsert_health_activity('{"user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","provider":"google_health","provider_workout_id":"workout-3","started_at":"2026-11-03T10:00:00Z","ended_at":"2026-11-03T10:30:00Z","type":"running","provenance":{"origin_provider":"watch-app","origin_workout_id":"source-original"}}');
+select public.upsert_health_activity('{"user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","provider":"google_health","provider_workout_id":"workout-4","started_at":"2026-11-03T10:00:00Z","ended_at":"2026-11-03T10:30:00Z","type":"running","provenance":{"origin_provider":"watch-app","origin_workout_id":"source-original"}}');
+select is((select count(*) from public.activities),4::bigint,'source provenance records retained');
+select is((select count(*) from public.activities where duplicate_of is null),3::bigint,'matching explicit origin identity is counted once');
+select lives_ok($$select public.health_credentials_delete('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')$$,'credentials can be deleted on disconnect');
+select is(public.health_credentials_get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),null::jsonb,'credentials removed');
+update public.health_connections set status='disconnected' where id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+select throws_ok($$select public.health_credentials_store('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','stale-access','stale-refresh',now()+interval '1 hour',array['readonly'])$$,'42501','Health connection is not active','stale token refresh cannot restore credentials after disconnect');
+select is(public.health_credentials_get('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),null::jsonb,'disconnected credentials stay erased');
+reset role;
+select * from finish();
+rollback;

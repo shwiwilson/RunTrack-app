@@ -1,11 +1,12 @@
 {
-    "name": "run_track_app",
-    "short_name": "run_track_app",
+    "id": "/",
+    "name": "RunTrack",
+    "short_name": "RunTrack",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F5F7F2",
+    "theme_color": "#315A18",
+    "description": "Private training, real progress and your running community.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

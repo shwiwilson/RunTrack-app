@@ -51,10 +51,13 @@ class PremiumCard extends StatelessWidget {
                 ),
               ],
       ),
-      child: Column(
-        mainAxisSize: mainAxisSize,
-        crossAxisAlignment: crossAxisAlignment,
-        children: child == null ? children! : [child!],
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          mainAxisSize: mainAxisSize,
+          crossAxisAlignment: crossAxisAlignment,
+          children: child == null ? children! : [child!],
+        ),
       ),
     );
   }

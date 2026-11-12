@@ -24,19 +24,19 @@ class ClubThemeConfig {
   Color get strokeColor => colors.outline;
 
   factory ClubThemeConfig.fromJson(Map<String, dynamic> json) {
-    final colorsJson = json['colors'] as Map<String, dynamic>;
-    final buttonsJson = json['buttons'] as Map<String, dynamic>;
-    final typographyJson = json['typography'] as Map<String, dynamic>;
-    final shapeJson = json['shape'] as Map<String, dynamic>;
-    final spacingJson = json['spacing'] as Map<String, dynamic>;
+    final colorsJson = json['colors'] as Map<String, dynamic>? ?? {};
+    final buttonsJson = json['buttons'] as Map<String, dynamic>? ?? {};
+    final typographyJson = json['typography'] as Map<String, dynamic>? ?? {};
+    final shapeJson = json['shape'] as Map<String, dynamic>? ?? {};
+    final spacingJson = json['spacing'] as Map<String, dynamic>? ?? {};
 
     return ClubThemeConfig(
-      name: json['name'] as String,
+      name: json['name']?.toString() ?? 'Default',
       colors: ClubThemeColors.fromJson(colorsJson),
       buttons: ClubButtonThemes.fromJson(buttonsJson),
-      fontFamily: typographyJson['fontFamily'] as String,
-      borderRadius: (shapeJson['borderRadius'] as num).toDouble(),
-      edgePadding: (spacingJson['edgePadding'] as num).toDouble(),
+      fontFamily: typographyJson['fontFamily']?.toString() ?? '',
+      borderRadius: (shapeJson['borderRadius'] as num? ?? 8.0).toDouble(),
+      edgePadding: (spacingJson['edgePadding'] as num? ?? 16.0).toDouble(),
     );
   }
 
@@ -304,35 +304,60 @@ class ClubThemeColors {
 
   factory ClubThemeColors.fromJson(Map<String, dynamic> json) {
     return ClubThemeColors(
-      primary: _colorFromHex(json['primary'] as String),
-      onPrimary: _colorFromHex(json['onPrimary'] as String),
-      primaryContainer: _colorFromHex(json['primaryContainer'] as String),
-      onPrimaryContainer: _colorFromHex(json['onPrimaryContainer'] as String),
-      secondary: _colorFromHex(json['secondary'] as String),
-      onSecondary: _colorFromHex(json['onSecondary'] as String),
-      secondaryContainer: _colorFromHex(json['secondaryContainer'] as String),
-      onSecondaryContainer: _colorFromHex(
-        json['onSecondaryContainer'] as String,
+      primary: _colorFromHex(json['primary']?.toString() ?? '#000000'),
+      onPrimary: _colorFromHex(json['onPrimary']?.toString() ?? '#FFFFFF'),
+      primaryContainer: _colorFromHex(
+        json['primaryContainer']?.toString() ?? '#E0E0E0',
       ),
-      tertiary: _colorFromHex(json['tertiary'] as String),
-      onTertiary: _colorFromHex(json['onTertiary'] as String),
-      tertiaryContainer: _colorFromHex(json['tertiaryContainer'] as String),
-      onTertiaryContainer: _colorFromHex(json['onTertiaryContainer'] as String),
-      background: _colorFromHex(json['background'] as String),
-      onBackground: _colorFromHex(json['onBackground'] as String),
-      surface: _colorFromHex(json['surface'] as String),
-      onSurface: _colorFromHex(json['onSurface'] as String),
-      surfaceVariant: _colorFromHex(json['surfaceVariant'] as String),
-      onSurfaceVariant: _colorFromHex(json['onSurfaceVariant'] as String),
-      outline: _colorFromHex(json['outline'] as String),
-      outlineVariant: _colorFromHex(json['outlineVariant'] as String),
-      error: _colorFromHex(json['error'] as String),
-      onError: _colorFromHex(json['onError'] as String),
-      success: _colorFromHex(json['success'] as String),
-      warning: _colorFromHex(json['warning'] as String),
-      inverseSurface: _colorFromHex(json['inverseSurface'] as String),
-      inverseOnSurface: _colorFromHex(json['inverseOnSurface'] as String),
-      inversePrimary: _colorFromHex(json['inversePrimary'] as String),
+      onPrimaryContainer: _colorFromHex(
+        json['onPrimaryContainer']?.toString() ?? '#000000',
+      ),
+      secondary: _colorFromHex(json['secondary']?.toString() ?? '#666666'),
+      onSecondary: _colorFromHex(json['onSecondary']?.toString() ?? '#FFFFFF'),
+      secondaryContainer: _colorFromHex(
+        json['secondaryContainer']?.toString() ?? '#F0F0F0',
+      ),
+      onSecondaryContainer: _colorFromHex(
+        json['onSecondaryContainer']?.toString() ?? '#000000',
+      ),
+      tertiary: _colorFromHex(json['tertiary']?.toString() ?? '#999999'),
+      onTertiary: _colorFromHex(json['onTertiary']?.toString() ?? '#FFFFFF'),
+      tertiaryContainer: _colorFromHex(
+        json['tertiaryContainer']?.toString() ?? '#F5F5F5',
+      ),
+      onTertiaryContainer: _colorFromHex(
+        json['onTertiaryContainer']?.toString() ?? '#000000',
+      ),
+      background: _colorFromHex(json['background']?.toString() ?? '#FFFFFF'),
+      onBackground: _colorFromHex(
+        json['onBackground']?.toString() ?? '#000000',
+      ),
+      surface: _colorFromHex(json['surface']?.toString() ?? '#FFFFFF'),
+      onSurface: _colorFromHex(json['onSurface']?.toString() ?? '#000000'),
+      surfaceVariant: _colorFromHex(
+        json['surfaceVariant']?.toString() ?? '#F0F0F0',
+      ),
+      onSurfaceVariant: _colorFromHex(
+        json['onSurfaceVariant']?.toString() ?? '#444444',
+      ),
+      outline: _colorFromHex(json['outline']?.toString() ?? '#CCCCCC'),
+      outlineVariant: _colorFromHex(
+        json['outlineVariant']?.toString() ?? '#EEEEEE',
+      ),
+      error: _colorFromHex(json['error']?.toString() ?? '#B00020'),
+      onError: _colorFromHex(json['onError']?.toString() ?? '#FFFFFF'),
+      success: _colorFromHex(json['success']?.toString() ?? '#4CAF50'),
+      warning: _colorFromHex(json['warning']?.toString() ?? '#FFC107'),
+      inverseSurface: _colorFromHex(
+        json['inverseSurface']?.toString() ?? '#000000',
+      ),
+      inverseOnSurface: _colorFromHex(
+        (json['inverseOnSurface'] ?? json['onInverseSurface'])?.toString() ??
+            '#FFFFFF',
+      ),
+      inversePrimary: _colorFromHex(
+        json['inversePrimary']?.toString() ?? '#FFFFFF',
+      ),
     );
   }
 
@@ -362,16 +387,20 @@ class ClubButtonThemes {
   factory ClubButtonThemes.fromJson(Map<String, dynamic> json) {
     return ClubButtonThemes(
       elevated: ClubButtonColorSet.fromJson(
-        json['elevated'] as Map<String, dynamic>,
+        Map<String, dynamic>.from(json['elevated'] as Map? ?? {}),
       ),
       filled: ClubButtonColorSet.fromJson(
-        json['filled'] as Map<String, dynamic>,
+        Map<String, dynamic>.from(json['filled'] as Map? ?? {}),
       ),
       outlined: ClubButtonColorSet.fromJson(
-        json['outlined'] as Map<String, dynamic>,
+        Map<String, dynamic>.from(json['outlined'] as Map? ?? {}),
       ),
-      text: ClubButtonColorSet.fromJson(json['text'] as Map<String, dynamic>),
-      icon: ClubButtonColorSet.fromJson(json['icon'] as Map<String, dynamic>),
+      text: ClubButtonColorSet.fromJson(
+        Map<String, dynamic>.from(json['text'] as Map? ?? {}),
+      ),
+      icon: ClubButtonColorSet.fromJson(
+        Map<String, dynamic>.from(json['icon'] as Map? ?? {}),
+      ),
     );
   }
 }
@@ -397,7 +426,9 @@ class ClubButtonColorSet {
   factory ClubButtonColorSet.fromJson(Map<String, dynamic> json) {
     return ClubButtonColorSet(
       backgroundColor: _optionalColor(json['backgroundColor']),
-      foregroundColor: _colorFromHex(json['foregroundColor'] as String),
+      foregroundColor: _colorFromHex(
+        json['foregroundColor']?.toString() ?? '#000000',
+      ),
       disabledBackgroundColor: _optionalColor(json['disabledBackgroundColor']),
       disabledForegroundColor: _optionalColor(json['disabledForegroundColor']),
       borderColor: _optionalColor(json['borderColor']),

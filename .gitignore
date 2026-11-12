@@ -32,6 +32,18 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+node_modules/
+
+# Local configuration and credentials. Only examples belong in source control.
+.env
+.env.*
+!.env.example
+env.json
+env.*.json
+!env.example.json
+supabase/.temp/
+supabase/.branches/
+test-results/
 
 # Symbolication related
 app.*.symbols
