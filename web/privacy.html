@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="How TSWebDev uses and protects personal information in RunTrack, including optional Google Health workout connections.">
+  <meta name="theme-color" content="#315A18">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>RunTrack privacy · TSWebDev</title>
+  <style>
+    :root{color-scheme:light dark;--paper:#f5f7f2;--card:#fff;--ink:#20261c;--muted:#526047;--accent:#315a18;--line:#dbe3d4}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.7 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    header,main,footer{width:min(100% - 40px,840px);margin-inline:auto}
+    header{padding-block:28px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    a{color:var(--accent);text-underline-offset:3px}
+    a:hover{text-decoration-thickness:2px}
+    a:focus-visible{outline:3px solid var(--accent);outline-offset:5px;border-radius:3px}
+    .brand{font-size:15px;font-weight:800;letter-spacing:3px;text-decoration:none}
+    main{margin-block:24px 48px}
+    .intro{padding-block:8px 24px}
+    .eyebrow{color:var(--accent);font-size:13px;font-weight:750;letter-spacing:2px;text-transform:uppercase}
+    h1{font-size:clamp(32px,6vw,48px);line-height:1.12;letter-spacing:-1px;margin:10px 0 20px}
+    h2{font-size:24px;line-height:1.25;margin:0 0 16px;letter-spacing:-.3px}
+    h3{font-size:18px;line-height:1.4;margin:20px 0 8px}
+    p{margin:0 0 16px}
+    .lede{font-size:20px;color:var(--muted);max-width:62ch}
+    .updated{font-size:14px;color:var(--muted)}
+    .contents{display:flex;flex-wrap:wrap;gap:8px 22px;border-block:1px solid var(--line);padding:18px 0;margin-bottom:28px;font-size:15px}
+    section{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:28px;margin-block:18px;scroll-margin-top:20px}
+    section>:last-child{margin-bottom:0}
+    ul{padding-left:24px;margin:8px 0 18px}
+    li{margin-block:8px}
+    dt{font-weight:750;margin-top:18px}
+    dd{margin:6px 0 0;color:var(--muted)}
+    .note{padding:16px 18px;border-left:4px solid var(--accent);background:var(--paper);border-radius:0 10px 10px 0}
+    footer{padding:0 0 36px;font-size:14px;color:var(--muted)}
+    @media(max-width:480px){body{font-size:16px}section{padding:22px 20px}header,main,footer{width:calc(100% - 32px)}h2{font-size:22px}}
+    @media(prefers-color-scheme:dark){:root{--paper:#10140f;--card:#191e17;--ink:#edf1e7;--muted:#bcc6b4;--accent:#b5ed75;--line:#394331}}
+    @media print{body{font-size:11pt;background:white;color:black}header,.contents,footer{display:none}section{border:0;padding:0;margin:22px 0;break-inside:avoid}a{color:inherit}}
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="./" aria-label="RunTrack home">RUNTRACK</a>
+    <a href="./">Back to RunTrack</a>
+  </header>
+  <main id="main-content">
+    <div class="intro">
+      <p class="eyebrow">Privacy and your data</p>
+      <h1>Your running, with clear choices.</h1>
+      <p class="lede">This notice explains the information RunTrack uses, who can see it, and how you can access or remove it. Connecting running data is optional.</p>
+      <p class="updated">Last updated: 12 November 2026</p>
+    </div>
+    <nav class="contents" aria-label="Privacy notice contents">
+      <a href="#operator">Who runs RunTrack</a>
+      <a href="#information">Information we use</a>
+      <a href="#google-health">Google Health</a>
+      <a href="#sharing">Sharing</a>
+      <a href="#retention">Keeping and deleting data</a>
+      <a href="#rights">Your rights</a>
+    </nav>
+
+    <section id="operator" aria-labelledby="operator-title">
+      <h2 id="operator-title">Who runs RunTrack</h2>
+      <p><strong>TSWebDev, operated by Shane, is the data controller for RunTrack.</strong> TSWebDev decides how personal information is used to provide this service.</p>
+      <p>For privacy questions or requests, email <a href="mailto:hello@tswebdev.co.uk">hello@tswebdev.co.uk</a>. You can find TSWebDev at <a href="https://tswebdev.co.uk/" rel="noopener noreferrer">tswebdev.co.uk</a>.</p>
+      <p>Running clubs, Google and watch providers have their own responsibilities for information they process outside RunTrack.</p>
+    </section>
+
+    <section id="information" aria-labelledby="information-title">
+      <h2 id="information-title">Information we use</h2>
+      <dl>
+        <dt>Your account</dt>
+        <dd>Your name, email address, verified account identity, authentication credentials and session information. Supabase Auth manages authentication. We use this to create and protect your account, sign you in, and send verification or password-recovery messages.</dd>
+        <dt>Your club participation</dt>
+        <dd>Membership and role, sessions, RSVPs, administrator-confirmed attendance, challenge participation and any race results you choose to enter. These support the club features you use.</dd>
+        <dt>Your workouts, if you connect a provider</dt>
+        <dd>Available activity type, start and end times, timezone, distance, durations, pace, heart rate, calories, elevation, device/source information and laps or splits. Some fitness information can reveal health information. Unavailable measurements stay unavailable. RunTrack does not collect GPS routes or request location access.</dd>
+        <dt>Connection and setup information</dt>
+        <dd>Your linked provider identity, granted permissions, consent choices and timestamps, encrypted provider credentials, sync status and errors. Your phone/watch choices and onboarding progress let you resume setup after leaving the app. RunTrack cannot detect which health apps are installed.</dd>
+        <dt>Technical and security information</dt>
+        <dd>Our hosting and authentication providers process information needed to serve and protect requests, which can include IP addresses, browser/request information, timestamps and operational logs.</dd>
+      </dl>
+      <p>Workouts come from the provider you authorise. Club participation information comes from you and permitted club administrators. Statistics, personal bests and achievements are calculated from stored activity and attendance records.</p>
+    </section>
+
+    <section id="purposes" aria-labelledby="purposes-title">
+      <h2 id="purposes-title">Why we use it</h2>
+      <ul>
+        <li><strong>Account and requested club services:</strong> to perform our agreement to provide the RunTrack service you ask for, including authentication, memberships, sessions and RSVPs.</li>
+        <li><strong>Optional provider imports and sharing:</strong> with your consent. Where optional imported information is health data, we ask for your explicit consent before enabling that processing.</li>
+        <li><strong>Security and service operation:</strong> our legitimate interests in keeping the service reliable, preventing misuse and protecting accounts, while taking account of your rights.</li>
+        <li><strong>Legal requirements:</strong> where a legal obligation requires particular information to be used or retained.</li>
+      </ul>
+      <p>RunTrack does not sell personal or health data, use it for advertising, or use Google Health information to train general-purpose AI models. Training statistics and achievements do not make legal or similarly significant decisions about you.</p>
+    </section>
+
+    <section id="google-health" aria-labelledby="google-health-title">
+      <h2 id="google-health-title">Your optional Google Health connection</h2>
+      <p>You can use RunTrack without connecting Google Health. When available and enabled by you, the connection requests read-only activity and fitness access to verify your linked Google Health identity and import genuine running workouts. It does not request permission to write health records or access your location.</p>
+      <p>Imported information is used for your running history, training statistics, personal bests, achievements and personal challenge progress. Club summaries and leaderboards use only the activities you explicitly choose to share. Data coverage depends on what your device, companion apps and Google Health actually make available.</p>
+      <p>RunTrack follows the <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener noreferrer">Google API Services User Data Policy</a>, including its Limited Use requirements. Google data is used for the features described here, not advertising, sale, credit or insurance decisions. Human access to imported Google health data is limited to your specific permission, security needs, legal requirements or another exception permitted by that policy.</p>
+      <p>You can withdraw access using <strong>Connect your running data → Disconnect Google Health</strong>, or remove RunTrack in your <a href="https://myaccount.google.com/connections" rel="noopener noreferrer">Google Account connections</a>. Disconnecting stops future access and removes RunTrack's stored provider credentials. Previously imported runs remain until you delete your RunTrack account or request their removal.</p>
+      <p class="note">A connection is only shown as linked after a backend identity check. Provider setup or approval may still be required; this notice does not indicate that an account is connected or that a sync has succeeded.</p>
+    </section>
+
+    <section id="sharing" aria-labelledby="sharing-title">
+      <h2 id="sharing-title">Who can see your information</h2>
+      <p><strong>Activities start private.</strong> Joining a club does not give its administrators access to your private workouts or heart-rate measurements.</p>
+      <p>Club members can see permitted roster and session information, such as names, membership, RSVPs and attendance. Club administrators manage their club's memberships, sessions, codes, challenges and confirmed attendance.</p>
+      <p>If you explicitly share a run with a club, active members can see a limited summary such as its date, distance, duration, pace and source. The club feed excludes heart rate, detailed source provenance and provider workout identifiers. You can make a previously shared activity private again.</p>
+      <h3>Services that help operate RunTrack</h3>
+      <ul>
+        <li><a href="https://supabase.com/privacy" rel="noopener noreferrer">Supabase</a> provides account authentication, the database and server functions. The primary RunTrack database is hosted in its London region.</li>
+        <li><a href="https://vercel.com/legal/privacy-notice" rel="noopener noreferrer">Vercel</a> hosts and delivers the website and processes hosting/security requests.</li>
+        <li><a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google</a> provides the optional health connection and its consent/account services when you choose to connect.</li>
+        <li>Account messages use Supabase Auth's configured email service. <strong>Brevo is planned for verification and password-reset delivery</strong>; it will process recipient addresses and essential message content when that sender is enabled.</li>
+      </ul>
+      <p>Some provider processing may take place outside the UK under the providers' applicable data-processing arrangements. Contact us for current processor, location and transfer information. Authorised service administration is limited to operating, securing or supporting RunTrack and handling your requests or legal requirements. Access to Google health information remains subject to the limits described above.</p>
+    </section>
+
+    <section id="storage" aria-labelledby="storage-title">
+      <h2 id="storage-title">Security and storage on your device</h2>
+      <p>RunTrack uses authenticated access and database permissions to restrict personal records. Provider access and refresh credentials are encrypted and kept on the server, outside browser-accessible tables. Requests to the live service use HTTPS.</p>
+      <p>Your browser stores session information to keep you signed in, along with setup progress and preferences. Signing out removes the active sign-in session. Some setup choices or preferences may remain on your device until you clear this site's storage.</p>
+      <p>The service worker caches a public offline notice. It does not cache API responses or private training history. A data export you download is a separate file under your control; keep or delete that file as appropriate.</p>
+      <p>No advertising or marketing analytics have been added to RunTrack, and the app does not ask for GPS, camera or microphone access.</p>
+    </section>
+
+    <section id="retention" aria-labelledby="retention-title">
+      <h2 id="retention-title">Keeping and deleting information</h2>
+      <p>Account, workout and participation records are kept to provide your account and its requested features while you use the service. Disconnecting a provider keeps your existing imported history; it removes the credentials used for future access.</p>
+      <p>You can use <strong>Account → Delete my account</strong> to delete your authentication identity, profile, memberships, workouts/laps, race results, RSVPs, challenge participation and stored health connection credentials. The app requires your current password and explicit confirmation.</p>
+      <p>Club-authored session content may remain with the author account identifier removed. Contact us if text you contributed contains identifying details that also need to be removed.</p>
+      <p>Operational logs and provider backups follow their configured operational or legal retention arrangements. Deleting an account does not instantly purge every provider backup. Retention depends on those configured cycles and the need to secure the service or meet legal requirements. Contact us for current retention details or a specific erasure request.</p>
+    </section>
+
+    <section id="rights" aria-labelledby="rights-title">
+      <h2 id="rights-title">Your choices and rights</h2>
+      <p>In <strong>Account</strong>, you can edit your profile, export your personal data as JSON, change your password and delete your account. You can control run visibility in the activity feed and disconnect Google Health from running-data setup.</p>
+      <p>You can also ask us for access, correction, erasure, restriction or portability, object to processing where applicable, and withdraw consent for optional processing. The rights available depend on the information and legal basis involved. Withdrawing consent does not affect processing that was lawful before withdrawal.</p>
+      <p>Send requests or concerns to <a href="mailto:hello@tswebdev.co.uk">hello@tswebdev.co.uk</a>. We may need to verify your identity to protect your account. You can complain to the UK's <a href="https://ico.org.uk/make-a-complaint/" rel="noopener noreferrer">Information Commissioner's Office</a>.</p>
+      <p>We will update this notice when the service's data practices change and show the updated date above. Material changes to optional health-data use will be explained before new consent is requested.</p>
+    </section>
+  </main>
+  <footer>RunTrack is operated by TSWebDev. <a href="mailto:hello@tswebdev.co.uk">Contact privacy support</a> · <a href="./">Open RunTrack</a></footer>
+</body>
+</html>
