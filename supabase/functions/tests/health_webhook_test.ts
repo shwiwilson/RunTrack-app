@@ -28,6 +28,16 @@ Deno.test("signed notification normalization preserves only required queue metad
   assert(!("unexpected" in event.payload));
   const [replay] = await normaliseHealthNotifications(item);
   assert(replay.provider_event_id === event.provider_event_id);
+  const [reordered] = await normaliseHealthNotifications({
+    unexpected: item.unexpected,
+    data: Object.fromEntries(Object.entries(item.data).reverse()),
+  });
+  assert(reordered.provider_event_id === event.provider_event_id);
+  const [later] = await normaliseHealthNotifications({
+    ...item,
+    timestamp: "2026-11-13T00:00:00Z",
+  });
+  assert(later.provider_event_id !== event.provider_event_id);
 });
 Deno.test("notification batches are bounded before hashing and preserve revocations", async () => {
   const item = {

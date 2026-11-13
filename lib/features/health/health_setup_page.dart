@@ -277,6 +277,11 @@ class _HealthSetupPageState extends State<HealthSetupPage>
     );
   }
 
+  Future<void> _finishLater() async {
+    await _save();
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Widget _link(String label, String url) => Align(
     alignment: Alignment.centerLeft,
     child: TextButton.icon(
@@ -295,9 +300,33 @@ class _HealthSetupPageState extends State<HealthSetupPage>
           ...children,
         ],
       );
+  Widget _instruction(int number, String title, String body) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$number. ', style: Theme.of(context).textTheme.titleMedium),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(body),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
   @override
   Widget build(BuildContext context) {
     final iphone = _phone == 'iPhone';
+    final directGoogle = _watch == 'Fitbit / Pixel Watch';
+    final healthApp = iphone ? 'Apple Health' : 'Health Connect';
+    final companion = _companion.text.trim().isEmpty
+        ? 'your watch app'
+        : _companion.text.trim();
     final status = _connection?['status'];
     return Scaffold(
       appBar: AppBar(title: const Text('Connect your running data')),
@@ -314,7 +343,26 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Connect once, then let genuine workouts build your training history. You can finish later and keep using RunTrack.',
+                  'Register and sign in to RunTrack with your email and password. You can join the club, use sessions and RSVP without connecting Google. Workout imports are optional; skip this and return later.',
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _busy ? null : () => _run(_finishLater),
+                    child: const Text('Skip for now, use the club'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _card(
+                  'How your runs reach RunTrack',
+                  directGoogle
+                      ? 'Your watch → Google Health → RunTrack'
+                      : 'Your watch → $companion → $healthApp → Google Health → RunTrack',
+                  children: const [
+                    Text(
+                      'RunTrack is this website, even when you add it to your home screen. Set up sharing in the separate phone apps first. RunTrack then reads the running workouts available in your Google Health account.',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 LinearProgressIndicator(value: (_step + 1) / 4),
@@ -338,7 +386,7 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                 if (_step == 0)
                   _card(
                     'Your phone and watch',
-                    'Choose your setup. We cannot detect installed apps from your browser.',
+                    'Choose the phone that syncs with your watch. The steps below change to match it. Your browser cannot check which phone apps you have installed.',
                     children: [
                       SegmentedButton<String>(
                         segments: const [
@@ -404,42 +452,70 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                   ),
                 if (_step == 1)
                   _card(
-                    iphone
+                    directGoogle
+                        ? 'Sync your watch to Google Health'
+                        : iphone
                         ? 'Share workouts through Apple Health'
                         : 'Share workouts through Health Connect',
-                    iphone
-                        ? 'Sync your watch with ${_companion.text}. In that app’s health sharing settings, enable writing workouts and distance to Apple Health where supported. Check that a genuine run appears in Apple Health.'
-                        : 'Sync your watch with ${_companion.text}. Enable writing exercise sessions and distance to Health Connect where your companion app supports it. Check a genuine run in Health Connect.',
+                    directGoogle
+                        ? 'Your watch uses Google Health directly. You can skip the extra Apple Health or Health Connect bridge for workouts recorded by this watch.'
+                        : 'First move one real run from $companion into $healthApp. Connecting RunTrack alone cannot move data out of your watch app.',
                     children: [
-                      if (!iphone)
-                        const Text(
-                          'Android 14 and later: Health Connect is in Settings → Security and privacy → Privacy controls. On earlier supported Android versions, install Health Connect if needed.',
-                        ),
-                      _link(
-                        iphone
-                            ? 'Apple Health guidance'
-                            : 'Health Connect setup and permissions',
-                        iphone
-                            ? 'https://support.apple.com/guide/iphone/get-started-with-health-iphc959f9d3e/ios'
-                            : 'https://support.google.com/android/answer/12201227',
+                      _instruction(
+                        1,
+                        'Sync a recorded run',
+                        'Open $companion on your phone and sync your watch. Check that the run appears there before continuing.',
                       ),
-                      if (!iphone)
+                      if (!directGoogle)
+                        _instruction(
+                          2,
+                          'Allow your watch app to share fitness data',
+                          _watch == 'Garmin' && !iphone
+                              ? 'Garmin sharing with Health Connect requires Android 14 or later. Search your phone settings for Health Connect, open app permissions and allow Garmin Connect to write the supported fitness data. Garmin sends data after a successful watch sync; it does not read data back from Health Connect.'
+                              : _watch == 'Garmin' && iphone
+                              ? 'In Apple Health, open your profile, find Apps and Services under Privacy, then choose Connect. Enable Workouts and Walking + Running Distance where available. Keep Garmin Connect open while syncing your watch.'
+                              : 'In $companion, find health sharing or connected apps and allow writing workouts and distance to $healthApp where supported. In $healthApp, check that this app has permission to write those data types.',
+                        ),
+                      if (!directGoogle)
+                        _instruction(
+                          3,
+                          'Check the receiving health app',
+                          'Look for the run or its exercise data in $healthApp. If it is missing, fix this sharing step first. RunTrack cannot retrieve data that has not reached Google Health.',
+                        ),
+                      if (_watch == 'Garmin' && !directGoogle)
+                        _link(
+                          'Garmin: share with $healthApp',
+                          iphone
+                              ? 'https://support.garmin.com/en-GB/?faq=lK5FPB9iPF5PXFkIpFlFPA'
+                              : 'https://support.garmin.com/en-GB/?faq=JToBEy0jfe6pIygark2Ui5',
+                        ),
+                      if (!directGoogle)
+                        _link(
+                          iphone
+                              ? 'Apple Health guidance'
+                              : 'Health Connect setup and permissions',
+                          iphone
+                              ? 'https://support.apple.com/guide/iphone/get-started-with-health-iphc959f9d3e/ios'
+                              : 'https://support.google.com/android/answer/12201227',
+                        ),
+                      if (!iphone && !directGoogle && _watch != 'Garmin')
                         _link(
                           'Install Health Connect if needed',
                           'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata',
                         ),
-                      const Text(
-                        'Sharing varies by device and app. If your companion app cannot write workouts to this health app, this route may not provide runs. You can still use RunTrack and return later.',
-                      ),
+                      if (!directGoogle)
+                        Text(
+                          _watch == 'Garmin' && !iphone
+                              ? 'Installing Health Connect on an older phone does not add Garmin’s Android 14 sharing support. If this route is unavailable, skip workout imports and use the club now.'
+                              : 'Support varies by watch and app. If your app cannot share workouts through this route, skip workout imports and use the club now.',
+                        ),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
                         value: _nativeReady,
                         onChanged: _busy
                             ? null
                             : (value) => setState(() => _nativeReady = value!),
-                        title: const Text(
-                          'I checked my workout sharing settings',
-                        ),
+                        title: const Text('I checked this step on my phone'),
                         subtitle: const Text(
                           'This saves your progress; it does not verify a connection.',
                         ),
@@ -449,12 +525,20 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                 if (_step == 2)
                   _card(
                     'Set up Google Health',
-                    'Install Google Health, sign in with your Google Account and create or link your health profile. Then connect ${iphone ? 'Apple Health' : 'Health Connect'} inside Google Health and choose which exercise data to share.',
+                    'Install the Google Health phone app and sign in with an adult Google Account. Finish creating or linking your health profile. You do not need a Google watch or a Google login for your RunTrack registration.',
                     children: [
-                      Text(
-                        iphone
-                            ? 'Google Health → Connections → Apps and services → Apple Health. Follow the consent screens and permit reading workouts and distance.'
-                            : 'Google Health → Connections → Partner apps → Sync your favorite health apps. Follow setup and permit reading exercise and distance from Health Connect.',
+                      if (!directGoogle)
+                        _instruction(
+                          1,
+                          'Connect $healthApp inside Google Health',
+                          iphone
+                              ? 'Open Connections, then Apps and services, and choose Apple Health. Complete setup and allow Google Health to read exercise and distance. Select only the data you want to share.'
+                              : 'Open Connections, then Partner apps, and set up Sync your favorite health apps. Choose fitness data and let Google Health read exercise and distance from Health Connect, plus heart rate if wanted. Medical records are not needed. Review optional history and background access for ongoing syncing.',
+                        ),
+                      _instruction(
+                        directGoogle ? 1 : 2,
+                        'Find your run in Google Health',
+                        'Check that a real running workout appears in the Google Health app before connecting RunTrack. Use this same Google Account on RunTrack’s Google permission screen. It can be different from your RunTrack registration email.',
                       ),
                       _link(
                         'Install Google Health',
@@ -464,12 +548,23 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                       ),
                       _link(
                         'Official connection instructions',
-                        iphone
+                        directGoogle
+                            ? 'https://support.google.com/googlehealth/answer/14236613'
+                            : iphone
                             ? 'https://support.google.com/googlehealth/answer/17037331'
                             : 'https://support.google.com/googlehealth/answer/14506680',
                       ),
-                      const Text(
-                        'Look for your running workout in Google Health. Workout details, history and laps depend on what your watch app shares. RunTrack requests read-only fitness access; location access is not required.',
+                      if (!iphone && !directGoogle)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'To check the bridge: in Google Health, open Connections → Partner apps → Manage Health Connect. Look for a recent sync time, or tap Sync at the top right.',
+                          ),
+                        ),
+                      Text(
+                        _watch == 'Garmin'
+                            ? 'Garmin’s route provides exercise summaries; detailed lap splits and routes are not shared through this route. Older history and heart-rate detail can be limited. Start by checking a newly synced run.'
+                            : 'History, heart rate and lap detail depend on what each app actually shares. A successful connection does not guarantee older runs or every workout field will be available.',
                       ),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
@@ -478,10 +573,10 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                             ? null
                             : (value) => setState(() => _googleReady = value!),
                         title: const Text(
-                          'I opened Google Health and reviewed sharing',
+                          'I checked for my running workout in Google Health',
                         ),
                         subtitle: const Text(
-                          'Optional confirmation; the server checks your actual health account next.',
+                          'This saves progress only. It does not connect RunTrack or give it health-data permission.',
                         ),
                       ),
                     ],
@@ -493,6 +588,18 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                         ? 'Google Health identity verified. Your connection status below comes from the server.'
                         : 'Approve Google’s read-only consent screen. RunTrack will verify your Google Health identity and attempt to retrieve genuine running workouts.',
                     children: [
+                      const Text(
+                        'Pilot access: Google connections currently need an approved Google Account. If Google blocks access, email hello@tswebdev.co.uk with the Google Account address you want to connect. You can keep using RunTrack while waiting.',
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'During Google testing, permission may expire after 7 days. If syncing stops and permission is revoked, return here and reconnect. Your RunTrack email login and club access continue.',
+                      ),
+                      _link(
+                        'Email pilot support',
+                        'mailto:hello@tswebdev.co.uk',
+                      ),
+                      const SizedBox(height: 12),
                       Text(
                         'Status: ${switch (status) {
                           'connected' => 'Account linked',
@@ -535,7 +642,7 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                       FilledButton.icon(
                         onPressed: _busy || !_healthConsentAccepted
                             ? null
-                            : () => _run(_connect),
+                            : () async => _run(_connect),
                         icon: const Icon(Icons.link),
                         label: Text(
                           status == 'connected'
@@ -587,7 +694,7 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                         'https://support.google.com/googlehealth/answer/14236613',
                       ),
                       const Text(
-                        'No workouts? Confirm the same Google Account is used in both apps, check exercise permissions and sync your watch app. A linked account can have no workouts. If Google Health is awaiting deployment setup, you can finish later.',
+                        'No runs yet? Work backwards: find the run in Google Health, then in Apple Health or Health Connect, then in your watch app. Sync the watch and check each app’s permissions. A linked account can have no runs; contact pilot support if access is blocked or the service is not ready.',
                       ),
                     ],
                   ),
@@ -617,13 +724,8 @@ class _HealthSetupPageState extends State<HealthSetupPage>
                         child: const Text('Continue'),
                       ),
                     TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _run(() async {
-                              await _save();
-                              if (context.mounted) Navigator.of(context).pop();
-                            }),
-                      child: const Text('Finish later'),
+                      onPressed: _busy ? null : () => _run(_finishLater),
+                      child: const Text('Skip for now, use the club'),
                     ),
                   ],
                 ),

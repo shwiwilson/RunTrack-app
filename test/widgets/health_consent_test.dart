@@ -82,18 +82,22 @@ void main() {
     expect(tester.widget<FilledButton>(button).onPressed, isNull);
     expect(find.text('Read the privacy notice'), findsOneWidget);
     await tester.ensureVisible(checkbox);
+    await tester.pumpAndSettle();
     await tester.tap(checkbox);
     await tester.pump();
     expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
-    await tester.runAsync(() async {
-      tester.widget<FilledButton>(button).onPressed!();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-    });
+    await tester.runAsync(
+      tester.widget<FilledButton>(button).onPressed! as Future<void> Function(),
+    );
     await tester.pumpAndSettle();
-    expect(submitted, {
-      'health_data_consent': true,
-      'consent_version': '2026-11-12-v1',
-    });
+    expect(
+      submitted,
+      {'health_data_consent': true, 'consent_version': '2026-11-12-v1'},
+      reason: tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data)
+          .join(' | '),
+    );
     expect(tester.takeException(), isNull);
   });
 }

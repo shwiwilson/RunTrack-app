@@ -8,6 +8,22 @@ export type HealthNotification = {
   payload: Record<string, unknown>;
 };
 
+// Signatures cover the raw request, but delivery identity must not depend on JSON
+// object member order. Preserve all event values, including timestamps, so later
+// real notifications for the same workout still receive distinct identities.
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${
+      Object.keys(object).sort().map((key) =>
+        `${JSON.stringify(key)}:${canonicalJson(object[key])}`
+      ).join(",")
+    }}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 export async function normaliseHealthNotifications(
   payload: unknown,
 ): Promise<HealthNotification[]> {
@@ -28,7 +44,7 @@ export async function normaliseHealthNotifications(
       )
     ) return null;
     return {
-      provider_event_id: await sha256(JSON.stringify(item)),
+      provider_event_id: await sha256(canonicalJson(item)),
       health_user_id: data.healthUserId,
       event_type: data.dataType,
       payload: {

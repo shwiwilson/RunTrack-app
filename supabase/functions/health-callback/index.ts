@@ -91,20 +91,12 @@ async function callback(request: Request): Promise<Response> {
     ),
   );
   let connection = check(
-    await client.from("health_connections").select("*").eq(
-      "user_id",
-      record.user_id,
-    ).eq("provider", "google_health").maybeSingle(),
+    await client.rpc("prepare_health_oauth_connection", {
+      p_user_id: record.user_id,
+      p_consent_id: record.health_consent_id,
+      p_state_hash: hash,
+    }),
   );
-  if (!connection) {
-    connection = check(
-      await client.from("health_connections").insert({
-        user_id: record.user_id,
-        provider: "google_health",
-        status: "error",
-      }).select().single(),
-    );
-  }
   // Reserve the same per-connection lease used by syncs before replacing any credentials.
   const jobId = check(
     await client.rpc("claim_health_sync", { p_connection_id: connection.id }),
@@ -116,38 +108,16 @@ async function callback(request: Request): Promise<Response> {
     );
   }
   try {
-    const activeState = check(
-      await client.from("oauth_states").select("state_hash").eq(
-        "state_hash",
-        hash,
-      ).eq("user_id", record.user_id).maybeSingle(),
-    );
-    if (!activeState) {
-      throw new HttpError(
-        409,
-        "Connection was cancelled. Start again from RunTrack.",
-      );
-    }
-    await requireHealthConsent(
+    connection = await storeTokens(
       client,
-      record.user_id,
-      record.health_consent_id,
-    );
-    check(
-      await client.from("health_connections").update({
-        status: "error",
-        last_error: null,
-      }).eq("id", connection.id),
-    );
-    await storeTokens(client, connection.id, tokens);
-    connection = check(
-      await client.from("health_connections").update({
-        provider_user_id: identity,
-        sync_cursor: {},
-        status: "connected",
-        last_error: null,
-      }).eq("id", connection.id).in("status", ["connected", "error"]).select()
-        .single(),
+      connection.id,
+      tokens,
+      undefined,
+      {
+        consentId: record.health_consent_id,
+        stateHash: hash,
+        providerUserId: identity,
+      },
     );
     const result = await syncConnection(client, connection, true, jobId);
     redirect.searchParams.set(
