@@ -256,6 +256,10 @@ Deno.test("subscriber requires both handshake outcomes then verifies actual ACTI
     assert(
       new Headers(init?.headers).get("authorization") === `Bearer ${GOOGLE}`,
     );
+    assert(
+      new Headers(init?.headers).get("x-goog-user-project") ===
+        "runtrack-health-cwdhym",
+    );
     if (call === 3) {
       assert(init?.method === "POST");
       assert(

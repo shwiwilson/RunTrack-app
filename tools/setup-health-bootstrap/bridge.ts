@@ -10,6 +10,68 @@ const WEBHOOK_URL = `${PROJECT_URL}/functions/v1/health-webhook`;
 const GOOGLE_SUBSCRIBERS =
   `https://health.googleapis.com/v4/projects/${PROJECT_NUMBER}/subscribers`;
 const MAX_BODY = 16384;
+const HTTP_STATUSES = new Set([400, 401, 403, 404, 409, 412, 429, 500, 502, 503, 504]);
+const PROVIDER_REASONS: Record<string, string> = {
+  SERVICE_DISABLED: "service_disabled",
+  ACCESS_TOKEN_SCOPE_INSUFFICIENT: "access_token_scope_insufficient",
+  IAM_PERMISSION_DENIED: "iam_permission_denied",
+  CONSUMER_INVALID: "consumer_invalid",
+  USER_PROJECT_DENIED: "user_project_denied",
+  BILLING_DISABLED: "billing_disabled",
+  SECURITY_POLICY_VIOLATED: "security_policy_violated",
+  RATE_LIMIT_EXCEEDED: "rate_limit_exceeded",
+  RESOURCE_QUOTA_EXCEEDED: "resource_quota_exceeded",
+  PERMISSION_DENIED: "permission_denied",
+  UNAUTHENTICATED: "unauthenticated",
+  INVALID_ARGUMENT: "invalid_argument",
+  NOT_FOUND: "not_found",
+  RESOURCE_EXHAUSTED: "resource_exhausted",
+  FAILED_PRECONDITION: "failed_precondition",
+  UNAVAILABLE: "unavailable",
+  INTERNAL: "internal",
+};
+type RequestStage = "webhook_authenticated" | "webhook_unauthenticated" |
+  "subscriber_create" | "subscriber_list" | "scheduler_rpc" | "status_rpc" |
+  "subscriber_record_rpc";
+
+// Only predefined constants can leave this parser. Messages, metadata, domains,
+// URLs and arbitrary provider reason strings are never returned or logged.
+export function safeProviderReason(data: unknown): string {
+  if (!data || typeof data !== "object") return "";
+  const error = (data as Record<string, unknown>).error;
+  if (!error || typeof error !== "object") return "";
+  const row = error as Record<string, unknown>;
+  if (Array.isArray(row.details)) {
+    for (const detail of row.details) {
+      if (detail && typeof detail === "object" &&
+          Object.hasOwn(PROVIDER_REASONS, detail.reason)) {
+        return PROVIDER_REASONS[detail.reason];
+      }
+    }
+  }
+  return typeof row.status === "string" && Object.hasOwn(PROVIDER_REASONS, row.status)
+    ? PROVIDER_REASONS[row.status] : "";
+}
+
+function httpDiagnostic(stage: RequestStage, status: number, reason = ""): string {
+  return `${stage}_http_${HTTP_STATUSES.has(status) ? status : "other"}${reason ? "_" + reason : ""}`;
+}
+
+async function googleHttpFailure(stage: "subscriber_create" | "subscriber_list", result: Response): Promise<BridgeError> {
+  let reason = "";
+  try { reason = safeProviderReason(await result.json()); } catch { /* body withheld */ }
+  return new BridgeError(502, httpDiagnostic(stage, result.status, reason));
+}
+
+async function readJson(result: Response, stage: RequestStage): Promise<Record<string, unknown>> {
+  try {
+    const data = await result.json();
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error();
+    return data;
+  } catch {
+    throw new BridgeError(502, `${stage}_invalid_json`);
+  }
+}
 
 export class BridgeError extends Error {
   constructor(readonly status: number, readonly code: string) {
@@ -147,16 +209,23 @@ function response(status: number, data: Record<string, unknown>): Response {
 export function createHandler(
   deps: Dependencies,
 ): (request: Request) => Promise<Response> {
-  const request = (url: string, init: RequestInit) =>
-    deps.fetch(url, {
-      ...init,
-      redirect: "error",
-      signal: AbortSignal.timeout(15000),
-    });
+  const request = async (url: string, init: RequestInit, stage: RequestStage): Promise<Response> => {
+    try {
+      return await deps.fetch(url, {
+        ...init,
+        redirect: "error",
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new BridgeError(502, `${stage}_network_failed`);
+    }
+  };
   const rpc = async (
     name: string,
     body: Record<string, string>,
   ): Promise<Record<string, unknown>> => {
+    const stage: RequestStage = name === "install_runtrack_health_schedule" ? "scheduler_rpc"
+      : name === "runtrack_health_delivery_status" ? "status_rpc" : "subscriber_record_rpc";
     const service = deps.env("SUPABASE_SERVICE_ROLE_KEY");
     if (!service) throw new BridgeError(503, "server_configuration_missing");
     const result = await request(`${PROJECT_URL}/rest/v1/rpc/${name}`, {
@@ -167,13 +236,9 @@ export function createHandler(
         authorization: `Bearer ${service}`,
       },
       body: JSON.stringify(body),
-    });
-    if (!result.ok) throw new BridgeError(502, "server_setup_rpc_failed");
-    const data = await result.json();
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new BridgeError(502, "server_setup_readback_failed");
-    }
-    return data;
+    }, stage);
+    if (!result.ok) throw new BridgeError(502, httpDiagnostic(stage, result.status));
+    return await readJson(result, stage);
   };
   return async (incoming: Request): Promise<Response> => {
     try {
@@ -256,23 +321,28 @@ export function createHandler(
             authorization: `Bearer ${secret}`,
           },
           body: verificationBody,
-        });
+        }, "webhook_authenticated");
         const unauthenticated = await request(WEBHOOK_URL, {
           method: "POST",
           headers: {
             "content-type": "application/json",
           },
           body: verificationBody,
-        });
-        if (
-          authenticated.status !== 201 ||
-          ![401, 403].includes(unauthenticated.status)
-        ) {
-          throw new BridgeError(409, "webhook_verification_failed");
+        }, "webhook_unauthenticated");
+        if (authenticated.status !== 201) {
+          throw new BridgeError(409, httpDiagnostic("webhook_authenticated", authenticated.status));
+        }
+        if (![401, 403].includes(unauthenticated.status)) {
+          throw new BridgeError(409, httpDiagnostic("webhook_unauthenticated", unauthenticated.status));
         }
         const headers = {
           "content-type": "application/json",
           authorization: `Bearer ${token}`,
+          // Cloud Shell user credentials otherwise charge this request to the
+          // caller's default quota project, where the Health API is not
+          // enabled. Bill/quota the dedicated project that owns this
+          // subscriber instead.
+          "x-goog-user-project": PROJECT_ID,
         };
         const created = await request(
           `${GOOGLE_SUBSCRIBERS}?subscriberId=${SUBSCRIBER_ID}`,
@@ -280,7 +350,7 @@ export function createHandler(
             method: "POST",
             headers,
             body: JSON.stringify(subscriberPayload(secret)),
-          },
+          }, "subscriber_create",
         );
         if (created.status === 409) {
           // Google's secret is input-only; an existing ACTIVE registration does
@@ -288,12 +358,13 @@ export function createHandler(
           throw new BridgeError(409, "subscriber_already_exists_review_required");
         }
         if (!created.ok) {
-          throw new BridgeError(502, "subscriber_create_failed");
+          throw await googleHttpFailure("subscriber_create", created);
         }
         if (created.ok) {
-          const operation = await created.json();
+          const operation = await readJson(created, "subscriber_create");
           if (operation?.error) {
-            throw new BridgeError(502, "subscriber_operation_failed");
+            const reason = safeProviderReason(operation);
+            throw new BridgeError(502, "subscriber_operation_failed" + (reason ? "_" + reason : ""));
           }
         }
         // The API returns a long-running operation. Verify the actual resource
@@ -302,11 +373,11 @@ export function createHandler(
           const listed = await request(`${GOOGLE_SUBSCRIBERS}?pageSize=100`, {
             method: "GET",
             headers,
-          });
+          }, "subscriber_list");
           if (!listed.ok) {
-            throw new BridgeError(502, "subscriber_readback_failed");
+            throw await googleHttpFailure("subscriber_list", listed);
           }
-          const result = await listed.json();
+          const result = await readJson(listed, "subscriber_list");
           if (
             Array.isArray(result.subscribers) &&
             result.subscribers.some(activeSubscriber)
