@@ -11,6 +11,16 @@ import 'features/account/account_page.dart';
 import 'features/health/health_setup_page.dart';
 import 'run_track_shell.dart';
 
+/// A completed OAuth return belongs on the normal app shell, not back inside
+/// the setup flow. Results that require the runner to act still reopen setup.
+String? healthReturnLandingNotice(String? result) => switch (result) {
+  'linked' =>
+    'Google Health is connected. Your latest workouts have been checked.',
+  'partial' =>
+    'Google Health is connected. Some older workout history is still available to sync.',
+  _ => null,
+};
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final recovery = Uri.base.queryParameters['flow'] == 'recovery';
@@ -137,6 +147,7 @@ class _AuthGateState extends State<AuthGate> {
   bool _recovery = false;
   bool _showClubPrompt = false;
   String? _error;
+  String? _healthNotice;
   String? _loadedUser;
   int _loadGeneration = 0;
   bool _healthReturnHandled = false;
@@ -225,9 +236,17 @@ class _AuthGateState extends State<AuthGate> {
           widget.healthReturn &&
           !_healthReturnHandled) {
         _healthReturnHandled = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) unawaited(_openHealth());
-        });
+        final notice = healthReturnLandingNotice(
+          Uri.base.queryParameters['health_result'],
+        );
+        if (notice != null) {
+          setState(() => _healthNotice = notice);
+          clearAccountIntent();
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) unawaited(_openHealth());
+          });
+        }
       }
     } catch (error) {
       if (mounted && generation == _loadGeneration) {
@@ -357,6 +376,8 @@ class _AuthGateState extends State<AuthGate> {
     return RunTrackShell(
       key: ValueKey(user.id),
       client: widget.client,
+      healthNotice: _healthNotice,
+      onDismissHealthNotice: () => setState(() => _healthNotice = null),
       onConnectHealth: () => unawaited(_openHealth()),
       onJoinClub: () => unawaited(_openClub()),
       onAccount: () async {

@@ -14,6 +14,8 @@ import 'package:run_track_app/features/shared/feature_widgets.dart';
 class RunTrackShell extends StatelessWidget {
   const RunTrackShell({
     required this.client,
+    required this.healthNotice,
+    required this.onDismissHealthNotice,
     required this.onConnectHealth,
     required this.onAccount,
     required this.onJoinClub,
@@ -21,6 +23,8 @@ class RunTrackShell extends StatelessWidget {
     super.key,
   });
   final SupabaseClient client;
+  final String? healthNotice;
+  final VoidCallback onDismissHealthNotice;
   final VoidCallback onConnectHealth;
   final VoidCallback onAccount;
   final VoidCallback onJoinClub;
@@ -115,6 +119,16 @@ class RunTrackShell extends StatelessWidget {
                         TextButton(
                           onPressed: controller.refresh,
                           child: const Text('Reload'),
+                        ),
+                      ],
+                    ),
+                  if (healthNotice != null)
+                    MaterialBanner(
+                      content: Text(healthNotice!),
+                      actions: [
+                        TextButton(
+                          onPressed: onDismissHealthNotice,
+                          child: const Text('Dismiss'),
                         ),
                       ],
                     ),

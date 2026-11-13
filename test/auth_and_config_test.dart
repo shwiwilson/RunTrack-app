@@ -28,6 +28,19 @@ class MemoryPkceStorage extends GotrueAsyncStorage {
 }
 
 void main() {
+  test('successful Google Health returns land in the app shell', () {
+    expect(
+      healthReturnLandingNotice('linked'),
+      'Google Health is connected. Your latest workouts have been checked.',
+    );
+    expect(
+      healthReturnLandingNotice('partial'),
+      'Google Health is connected. Some older workout history is still available to sync.',
+    );
+    expect(healthReturnLandingNotice('cancelled'), isNull);
+    expect(healthReturnLandingNotice('authorization_failed'), isNull);
+  });
+
   testWidgets(
     'invalid join codes stay on the form and never advance onboarding',
     (tester) async {
