@@ -29,6 +29,7 @@ class RunTrackShell extends StatelessWidget {
   final VoidCallback onAccount;
   final VoidCallback onJoinClub;
   final Future<void> Function() onSignOut;
+
   @override
   Widget build(BuildContext context) => ChangeNotifierProvider(
     create: (_) =>
@@ -37,7 +38,24 @@ class RunTrackShell extends StatelessWidget {
       builder: (context, controller, _) {
         final data = controller.snapshot;
         final body = controller.loading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/logo.png',
+                        height: 72,
+                        width: 72,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const CircularProgressIndicator(),
+                  ],
+                ),
+              )
             : data == null
             ? FeaturePage(
                 children: [
@@ -71,10 +89,27 @@ class RunTrackShell extends StatelessWidget {
               };
         Widget scaffold = Scaffold(
           appBar: AppBar(
-            title: Text(
-              data?.membership?.clubName ?? 'RunTrack',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    height: 28,
+                    width: 28,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    data?.membership?.clubName ?? 'Tyne Bridge Harriers',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
             actions: [
               IconButton(
