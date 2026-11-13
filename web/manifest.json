@@ -1,11 +1,12 @@
 {
-    "name": "Tyne Bridge Harriers",
-    "short_name": "TBH Run",
+    "id": "/",
+    "name": "RunTrack",
+    "short_name": "RunTrack",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#000000",
-    "theme_color": "#000000",
-    "description": "Tyne Bridge Harriers Running App",
+    "background_color": "#F5F7F2",
+    "theme_color": "#315A18",
+    "description": "Private training, real progress and your running community.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

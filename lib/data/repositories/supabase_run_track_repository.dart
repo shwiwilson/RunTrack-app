@@ -1,3 +1,5 @@
+import 'package:run_track_app/core/platform/browser_location.dart';
+import 'package:run_track_app/features/club_hub/domain/club_selection.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:run_track_app/domain/run_track_snapshot.dart';
 import 'package:run_track_app/features/activity/domain/models/activity_models.dart';
@@ -40,33 +42,39 @@ class SupabaseRunTrackRepository implements RunTrackRepository {
   }
 
   @override
-  Future<RunTrackSnapshot> load() async {
+  Future<RunTrackSnapshot> load({String? activeClubId}) async {
+    final accountId = userId;
+    final launchSlug = installedClubSlug();
     final profile = AthleteProfile.fromJson(
       await client
           .from('profiles')
           .select('id,display_name')
-          .eq('id', userId)
+          .eq('id', accountId)
           .single(),
     );
     final memberships = (await _all(
       'club_memberships',
-      select: '*,clubs(id,name,theme_json)',
-      equals: {'user_id': userId},
+      select: '*,clubs(id,name,status,theme_json,install_slug,updated_at)',
+      equals: {'user_id': accountId},
+      order: 'joined_at',
     )).map(ClubMembership.fromJson).toList();
-    final membership = memberships
-        .where((m) => m.status == 'active')
-        .firstOrNull;
+    final membership = ClubMembership.selectActive(
+      memberships,
+      preferredId:
+          activeClubId ?? await readClubSelection(accountId, launchSlug),
+      launchSlug: launchSlug,
+    );
     final ownResults = await Future.wait([
       _all(
         'activities',
         select: '*,activity_laps(*)',
-        equals: {'user_id': userId},
+        equals: {'user_id': accountId},
         order: 'started_at',
         canonicalActivities: true,
       ),
-      _all('race_results', equals: {'user_id': userId}, order: 'event_date'),
-      _all('health_connections', equals: {'user_id': userId}),
-      _all('session_rsvps', equals: {'user_id': userId, 'attended': true}),
+      _all('race_results', equals: {'user_id': accountId}, order: 'event_date'),
+      _all('health_connections', equals: {'user_id': accountId}),
+      _all('session_rsvps', equals: {'user_id': accountId, 'attended': true}),
     ]);
     var sessions = <ClubSession>[];
     var challenges = <ClubChallenge>[];
@@ -90,13 +98,13 @@ class SupabaseRunTrackRepository implements RunTrackRepository {
         _sharedActivities(membership.clubId),
         _all(
           'club_memberships',
-          select: '*,clubs(id,name,theme_json)',
+          select: '*,clubs(id,name,status,theme_json,install_slug,updated_at)',
           equals: {'club_id': membership.clubId},
         ),
       ]);
       sessions = clubResults[0].map(ClubSession.fromJson).toList();
       challenges = clubResults[1]
-          .map((e) => ClubChallenge.fromJson(e, userId))
+          .map((e) => ClubChallenge.fromJson(e, accountId))
           .toList();
       clubActivities = clubResults[2].map(Activity.fromJson).toList();
       clubMembers = clubResults[3].map(ClubMembership.fromJson).toList();
@@ -112,6 +120,7 @@ class SupabaseRunTrackRepository implements RunTrackRepository {
     return RunTrackSnapshot(
       profile: profile,
       memberships: memberships,
+      activeClubId: membership?.clubId,
       activities: ownResults[0].map(Activity.fromJson).toList(),
       raceResults: ownResults[1].map(RaceResult.fromJson).toList(),
       connections: ownResults[2].map(HealthConnection.fromJson).toList(),
@@ -245,13 +254,27 @@ class SupabaseRunTrackRepository implements RunTrackRepository {
   }
 
   @override
-  Future<void> updateClub(String clubId, String name) async {
-    await client
-        .from('clubs')
-        .update({'name': name.trim()})
-        .eq('id', clubId)
-        .select('id')
-        .single();
+  Future<void> updateClubBranding({
+    required String clubId,
+    required String name,
+    required String primary,
+    required String secondary,
+    required String background,
+    String? logo,
+    bool removeLogo = false,
+  }) async {
+    await client.rpc(
+      'update_club_branding',
+      params: {
+        'p_club_id': clubId,
+        'p_name': name,
+        'p_primary': primary,
+        'p_secondary': secondary,
+        'p_background': background,
+        'p_logo': logo,
+        'p_remove_logo': removeLogo,
+      },
+    );
   }
 
   @override

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:run_track_app/core/theme/club_theme_config.dart';
+import 'package:run_track_app/core/theme/club_branding.dart';
+import 'package:run_track_app/features/club_hub/domain/models/club_models.dart';
 import 'package:run_track_app/core/theme/theme_controller.dart';
 import 'package:run_track_app/data/repositories/supabase_run_track_repository.dart';
 import 'package:run_track_app/features/application/run_track_controller.dart';
@@ -38,24 +40,7 @@ class RunTrackShell extends StatelessWidget {
       builder: (context, controller, _) {
         final data = controller.snapshot;
         final body = controller.loading
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        height: 72,
-                        width: 72,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const CircularProgressIndicator(),
-                  ],
-                ),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : data == null
             ? FeaturePage(
                 children: [
@@ -94,17 +79,12 @@ class RunTrackShell extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    height: 28,
-                    width: 28,
-                    fit: BoxFit.contain,
-                  ),
+                  child: _ClubBadge(club: data?.membership),
                 ),
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(
-                    data?.membership?.clubName ?? 'Tyne Bridge Harriers',
+                    data?.membership?.clubName ?? 'RunTrack',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -199,13 +179,39 @@ class RunTrackShell extends StatelessWidget {
             ],
           ),
         );
-        final clubTheme = data?.membership?.theme;
-        if (clubTheme != null && clubTheme.isNotEmpty) {
-          final config = ClubThemeConfig.fromJson(clubTheme);
-          scaffold = Theme(data: config.toThemeData(), child: scaffold);
+        final club = data?.membership;
+        if (club != null && club.theme.isNotEmpty) {
+          scaffold = Theme(data: clubBrandTheme(club), child: scaffold);
         }
         return scaffold;
       },
     ),
   );
+}
+
+class _ClubBadge extends StatelessWidget {
+  const _ClubBadge({required this.club});
+
+  final ClubMembership? club;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Image.asset(
+      'web/icons/Icon-192.png',
+      width: 28,
+      height: 28,
+    );
+    final install = clubInstallPath(club);
+    if (!kIsWeb || install == null) return fallback;
+    final badge = Uri.base
+        .resolve(install.replaceFirst('/install', '/apple-touch-icon.png'))
+        .replace(queryParameters: {'v': club?.brandingUpdatedAt ?? ''});
+    return Image.network(
+      badge.toString(),
+      width: 28,
+      height: 28,
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) => fallback,
+    );
+  }
 }

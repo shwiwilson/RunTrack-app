@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:run_track_app/data/repositories/supabase_run_track_repository.dart';
 
@@ -60,6 +62,10 @@ Map<String, dynamic> row(int index) => {
 };
 
 void main() {
+  setUp(() {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+  });
   test(
     'repository paginates complete own history without creating a club or missing metrics',
     () async {

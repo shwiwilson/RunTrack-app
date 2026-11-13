@@ -2,7 +2,7 @@ import 'package:run_track_app/domain/run_track_snapshot.dart';
 import 'package:run_track_app/features/club_hub/domain/models/club_models.dart';
 
 abstract interface class RunTrackRepository {
-  Future<RunTrackSnapshot> load();
+  Future<RunTrackSnapshot> load({String? activeClubId});
   Future<void> shareActivity(String id, String? clubId);
   Future<void> rsvp(String sessionId, bool going);
   Future<void> saveSession({
@@ -21,7 +21,15 @@ abstract interface class RunTrackRepository {
     String role,
   );
   Future<void> rotateCode(String clubId, String code);
-  Future<void> updateClub(String clubId, String name);
+  Future<void> updateClubBranding({
+    required String clubId,
+    required String name,
+    required String primary,
+    required String secondary,
+    required String background,
+    String? logo,
+    bool removeLogo = false,
+  });
   Future<void> saveChallenge({
     String? id,
     required String clubId,

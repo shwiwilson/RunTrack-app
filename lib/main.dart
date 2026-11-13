@@ -7,6 +7,7 @@ import 'core/theme/run_track_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/widgets/form_page.dart';
 import 'features/auth/auth_page.dart';
+import 'features/club_hub/domain/club_selection.dart';
 import 'features/account/account_page.dart';
 import 'features/health/health_setup_page.dart';
 import 'run_track_shell.dart';
@@ -442,6 +443,14 @@ class _ClubJoinPageState extends State<ClubJoinPage> {
         if (result['ok'] != true) {
           throw AuthException(
             result['error'] as String? ?? 'Unable to join this club.',
+          );
+        }
+        final user = widget.client.auth.currentUser;
+        if (user != null && result['status'] == 'active') {
+          await saveClubSelection(
+            user.id,
+            result['club_id'] as String,
+            installedClubSlug(),
           );
         }
         await widget.onComplete();

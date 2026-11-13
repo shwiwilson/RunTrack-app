@@ -16,6 +16,7 @@ class RunTrackSnapshot {
     required this.memberNames,
     required this.clubMembers,
     this.confirmedAttendanceCount = 0,
+    this.activeClubId,
   });
   final AthleteProfile profile;
   final List<ClubMembership> memberships;
@@ -30,8 +31,9 @@ class RunTrackSnapshot {
 
   /// Count of the athlete's own server-confirmed RSVPs, including former clubs.
   final int confirmedAttendanceCount;
+  final String? activeClubId;
   ClubMembership? get membership =>
-      memberships.where((m) => m.status == 'active').firstOrNull;
+      ClubMembership.selectActive(memberships, preferredId: activeClubId);
   int get attendanceCount => confirmedAttendanceCount;
 }
 
