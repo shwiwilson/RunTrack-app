@@ -1,30 +1,81 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "",
+  "installCommand": "npm ci",
   "buildCommand": "sh scripts/vercel_build.sh",
   "outputDirectory": "build/web",
   "headers": [
-    { "source": "/(.*)", "headers": [
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "no-referrer" },
-      { "key": "Permissions-Policy", "value": "geolocation=(), camera=(), microphone=()" },
-      { "key": "X-Frame-Options", "value": "DENY" }
-    ]},
-    { "source": "/sw.js", "headers": [
-      { "key": "Cache-Control", "value": "no-cache" }
-    ]},
-    { "source": "/flutter_bootstrap.js", "headers": [
-      { "key": "Cache-Control", "value": "no-cache" }
-    ]},
-    { "source": "/main.dart.js", "headers": [
-      { "key": "Cache-Control", "value": "no-cache" }
-    ]},
-    { "source": "/index.html", "headers": [
-      { "key": "Cache-Control", "value": "no-cache" }
-    ]}
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), camera=(), microphone=()"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/flutter_bootstrap.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/main.dart.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/club/:slug/:asset(app|install|manifest\\.webmanifest|apple-touch-icon\\.png|icon-192\\.png|icon-512\\.png|maskable-192\\.png|maskable-512\\.png)",
+      "destination": "/api/club-pwa?slug=:slug&asset=:asset"
+    },
+    {
+      "source": "/:route((?!api/|club/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/club-pwa.js": {
+      "includeFiles": "web/{index.html,icons/Icon-512.png}"
+    }
+  }
 }

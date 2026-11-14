@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "sharp": "0.34.5"
+  },
+  "name": "runtrack",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test": "node --test test/pwa/*.test.cjs"
+  }
+}

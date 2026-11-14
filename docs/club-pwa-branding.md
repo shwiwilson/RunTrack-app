@@ -1,0 +1,21 @@
+# Club branding and installation
+
+RunTrack has one Flutter deployment. The root URL uses the generic RunTrack name and icon. Each active club has a permanent install URL. Tyne Bridge Harriers uses `/club/tyne-bridge-harriers/install`. Its black-and-white palette and badge are stored in Supabase. A display-name edit leaves the install URL and app identity stable.
+
+## For runners and club administrators
+
+1. Sign in and join with the code provided by your club. Open **Club → Install club app** in the browser you want to install from.
+2. If you belong to several clubs, use **Active club** to switch club data and branding. RunTrack remembers the selection for the signed-in runner on that browser or installation. Opening a different club’s new shortcut prefers that club if you are an active member. An inactive club, removed membership or a shortcut for a club you do not belong to cannot grant access.
+3. Administrators can use **Club → Manage club → Club branding** to change the display name, primary, secondary and background colours and upload a PNG, JPG or WebP logo. The app resizes and encodes it as a PNG. The editor can also restore the generic RunTrack icon. Use a transparent background and artwork that remains legible at small sizes.
+4. Changing your active club updates the interface. To replace a previous home-screen icon or get a renamed or updated badge immediately, uninstall or remove the old shortcut, reopen the new club’s install link in the browser and install it again. Your server-synced runs remain in your account. A separate installation may ask you to sign in again, especially on iOS. Complete email verification and password recovery in the browser or installation where you requested it.
+
+The install page offers a native prompt when the browser exposes one, and menu instructions for Safari on iPhone and iPad, Android Chrome, Samsung Internet, Chromium desktop and Safari on supported Macs. Menu wording, icon label truncation, install availability, support for multiple installations from the same site, and automatic icon updates vary by browser and OS.
+
+## Release and verification
+
+- Apply `20261113150449_club_pwa_branding.sql` to the intended Supabase project before releasing the web build. It adds a stable slug and a public RPC returning only install metadata for a known active club, plus a write RPC restricted to that club’s active administrators. PNG source bytes live in a protected table. Public manifests and badge URLs reveal the club name, colours and badge to anyone with the install link. Membership records and joining codes retain their existing access controls.
+- Use the existing Vercel project and its existing public `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (or legacy `SUPABASE_ANON_KEY`). Set those in Preview too if the preview needs live branding. Use the project’s Node 22 runtime and repository build settings. The Vercel function reads the existing public variables at runtime and generates valid 180 px, 192 px and 512 px PNGs. It does not use a server-role key. Existing email and health callback URLs stay at the root.
+- For a new club, provision it through the existing backend administration workflow. Supply a unique lower-case hyphenated `install_slug` when inserting the club if a readable URL is wanted. Otherwise a stable slug based on its ID is generated. The slug stays fixed after creation. Existing additional clubs are assigned ID-based slugs.
+- Run `npm ci && npm test`, `flutter analyze`, `flutter test`, and `sh scripts/build_web.sh env.json`. Run `supabase/tests/club_pwa_branding.test.sql` against an isolated database after its migrations. That test creates transaction-scoped fixtures and rolls back. See the other database tests in [database.md](database.md).
+- Against a preview, run `RUNTRACK_TEST_URL=https://PREVIEW_HOST NODE_PATH=/path/to/node_modules node scripts/smoke_club_pwa.cjs`. Set `CHROMIUM_PATH` if using system Chromium.
+- On physical iOS Safari, Android Chrome and Samsung Internet, add the shortcut, confirm the label and badge, launch it, sign in, switch clubs, close and reopen, and reinstall after changing the badge. Also verify the generic and branded installations can be distinguished when both exist. Browser automation can validate metadata and install eligibility, but cannot inspect native launcher icons.

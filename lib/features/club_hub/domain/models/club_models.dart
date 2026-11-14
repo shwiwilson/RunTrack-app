@@ -10,6 +10,9 @@ class ClubMembership {
     required this.status,
     required this.clubName,
     this.theme = const {},
+    this.installSlug,
+    this.brandingUpdatedAt,
+    this.clubStatus = 'active',
   });
   final String id;
   final String clubId;
@@ -18,7 +21,31 @@ class ClubMembership {
   final String status;
   final String clubName;
   final Map<String, dynamic> theme;
-  bool get isAdmin => role == 'admin' && status == 'active';
+  final String? installSlug;
+  final String? brandingUpdatedAt;
+  final String clubStatus;
+
+  bool get isActive => status == 'active' && clubStatus == 'active';
+  bool get isAdmin => role == 'admin' && isActive;
+
+  static ClubMembership? selectActive(
+    Iterable<ClubMembership> memberships, {
+    String? preferredId,
+    String? launchSlug,
+  }) {
+    final active = memberships.where((membership) => membership.isActive);
+    return active
+            .where((membership) => membership.clubId == preferredId)
+            .firstOrNull ??
+        active
+            .where(
+              (membership) =>
+                  membership.installSlug == launchSlug && launchSlug != null,
+            )
+            .firstOrNull ??
+        active.firstOrNull;
+  }
+
   factory ClubMembership.fromJson(Map<String, dynamic> json) {
     final club = Map<String, dynamic>.from(json['clubs'] as Map? ?? {});
     return ClubMembership(
@@ -28,6 +55,10 @@ class ClubMembership {
       role: json['role'] as String,
       status: json['status'] as String,
       clubName: club['name'] as String? ?? 'Your club',
+      installSlug: club['install_slug'] as String?,
+      brandingUpdatedAt: club['updated_at'] as String?,
+      clubStatus:
+          club['status'] as String? ?? (club.isEmpty ? 'inactive' : 'active'),
       theme: Map<String, dynamic>.from(club['theme_json'] as Map? ?? {}),
     );
   }

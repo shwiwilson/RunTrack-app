@@ -37,7 +37,7 @@ class TestRepository implements RunTrackRepository {
   Object? failure;
   int loads = 0;
   @override
-  Future<RunTrackSnapshot> load() async {
+  Future<RunTrackSnapshot> load({String? activeClubId}) async {
     loads++;
     if (failure != null) {
       throw failure!;

@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:run_track_app/core/theme/club_branding.dart';
+import 'club_branding_editor.dart';
 import 'package:run_track_app/core/theme/premium_typography.dart';
 import 'package:run_track_app/core/widgets/premium_card.dart';
 import 'package:run_track_app/domain/run_track_snapshot.dart';
@@ -34,6 +38,10 @@ class ClubHubView extends StatelessWidget {
         ],
       );
     }
+    final activeClubs = data.memberships
+        .where((club) => club.isActive)
+        .toList();
+    final installPath = clubInstallPath(membership);
     final now = DateTime.now();
     final upcoming =
         data.sessions.where((s) => !s.startsAt.isBefore(now)).toList()
@@ -48,6 +56,45 @@ class ClubHubView extends StatelessWidget {
           subtitle: membership.isAdmin
               ? 'Your club, ready to run. You are a club administrator.'
               : 'Your people. Your next run.',
+        ),
+        if (activeClubs.length > 1)
+          DropdownButtonFormField<String>(
+            key: ValueKey(membership.clubId),
+            initialValue: membership.clubId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Active club'),
+            items: [
+              for (final club in activeClubs)
+                DropdownMenuItem(
+                  value: club.clubId,
+                  child: Text(club.clubName, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: controller.saving
+                ? null
+                : (clubId) {
+                    if (clubId != null) controller.switchClub(clubId);
+                  },
+          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (kIsWeb && installPath != null)
+              OutlinedButton.icon(
+                onPressed: () => launchUrl(
+                  Uri.base.resolve(installPath),
+                  webOnlyWindowName: '_blank',
+                ),
+                icon: const Icon(Icons.install_mobile),
+                label: const Text('Install club app'),
+              ),
+            TextButton.icon(
+              onPressed: controller.saving ? null : onJoinClub,
+              icon: const Icon(Icons.group_add_outlined),
+              label: const Text('Join another club'),
+            ),
+          ],
         ),
         if (membership.isAdmin)
           Wrap(
@@ -458,19 +505,16 @@ class _ClubManagement extends StatelessWidget {
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Club name'),
+                  title: const Text('Club branding'),
                   subtitle: Text(membership.clubName),
-                  trailing: const Icon(Icons.edit_outlined),
+                  trailing: const Icon(Icons.palette_outlined),
                   onTap: controller.saving
                       ? null
-                      : () => _textChange(
-                          context,
-                          'Edit club',
-                          'Club name',
-                          membership.clubName,
-                          (value) => controller.repository.updateClub(
-                            membership.clubId,
-                            value,
+                      : () => showDialog<void>(
+                          context: context,
+                          builder: (_) => ClubBrandingEditor(
+                            controller: controller,
+                            club: membership,
                           ),
                         ),
                 ),
